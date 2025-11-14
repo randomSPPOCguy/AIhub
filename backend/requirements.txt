@@ -1,0 +1,34 @@
+# FastAPI and server
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+pydantic==2.10.3
+pydantic-settings==2.6.1
+
+# AI Provider SDKs
+google-generativeai==0.8.3
+openai==1.57.2
+anthropic==0.42.0
+
+# Utilities
+python-dotenv==1.0.1
+aiohttp==3.11.10
+httpx>=0.28.1  # For Wikipedia and MusicBrainz APIs
+
+# Phi-3 Local AI
+transformers==4.46.3
+torch==2.5.1
+accelerate==1.1.1
+sentencepiece==0.2.0
+
+# Model Management
+huggingface_hub>=0.20.0  # Model downloading
+tqdm>=4.66.0            # Progress bars
+loguru>=0.7.0           # Advanced logging
+
+# ONNX Runtime (GPU + GenAI)
+onnxruntime-genai-cuda>=0.10.0
+# If this machine uses CUDA 13, use the CUDA-13 nightly of onnxruntime-gpu.
+# (If you move to CUDA 12 later, swap to: `onnxruntime-gpu` from PyPI stable.)
+# Install CUDA-13 nightly with:
+# pip install onnxruntime-gpu --index-url https://aiinfra.pkgs.visualstudio.com/PublicPackages/_packaging/onnxruntime-cuda-13/pypi/simple/
+# onnxruntime-gpu  (keep commented in file to avoid accidental pins)
