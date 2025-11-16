@@ -141,7 +141,7 @@ src/
   config.js              # env parsing
   utils/
     logger.js
-    rateLimit.js         # 1 r/s for MusicBrainz
+    rateLimit.js         # 1 r/s for MusicBrainz,
   db/
     connection.js
     migrate.js
