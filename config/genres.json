@@ -1,0 +1,388 @@
+{
+  "byKey": {
+    "boom_bap": {
+      "wikipedia": [
+        "Boom bap"
+      ],
+      "discogs": {
+        "style": [
+          "Boom Bap"
+        ]
+      }
+    },
+    "jazz_rap": {
+      "wikipedia": [
+        "Jazz rap"
+      ],
+      "discogs": {
+        "style": [
+          "Jazzy Hip-Hop"
+        ]
+      }
+    },
+    "trip_hop": {
+      "wikipedia": [
+        "Trip hop"
+      ],
+      "discogs": {
+        "style": [
+          "Trip Hop"
+        ]
+      }
+    },
+    "lofi_hip_hop": {
+      "wikipedia": [
+        "Lofi hip-hop"
+      ],
+      "discogs": {
+        "style": [
+          "Lo-Fi",
+          "Instrumental"
+        ]
+      }
+    },
+    "cloud_rap": {
+      "wikipedia": [
+        "Cloud rap"
+      ],
+      "discogs": {
+        "style": [
+          "Cloud Rap"
+        ]
+      }
+    },
+    "glitch_hop": {
+      "wikipedia": [
+        "Glitch hop"
+      ],
+      "discogs": {
+        "style": [
+          "Glitch Hop"
+        ]
+      }
+    },
+    "industrial_hip_hop": {
+      "wikipedia": [
+        "Industrial hip hop"
+      ],
+      "discogs": {
+        "style": [
+          "Industrial"
+        ]
+      }
+    },
+    "punk_rap": {
+      "wikipedia": [
+        "Punk rap"
+      ],
+      "discogs": {
+        "style": [
+          "Hardcore Hip-Hop"
+        ]
+      }
+    },
+    "instrumental_hip_hop": {
+      "wikipedia": [
+        "Instrumental hip hop"
+      ],
+      "discogs": {
+        "style": [
+          "Instrumental"
+        ]
+      }
+    },
+    "underground_hip_hop": {
+      "wikipedia": [
+        "Underground hip-hop"
+      ],
+      "discogs": {
+        "style": [
+          "Conscious",
+          "Hardcore Hip-Hop"
+        ]
+      }
+    },
+    "phonk": {
+      "wikipedia": [
+        "Phonk"
+      ],
+      "discogs": {
+        "style": [
+          "Phonk"
+        ]
+      }
+    },
+    "shoegaze": {
+      "wikipedia": [
+        "Shoegaze"
+      ],
+      "discogs": {
+        "style": [
+          "Shoegaze"
+        ]
+      }
+    },
+    "dream_pop": {
+      "wikipedia": [
+        "Dream pop"
+      ],
+      "discogs": {
+        "style": [
+          "Dream Pop"
+        ]
+      }
+    },
+    "noise_pop": {
+      "wikipedia": [
+        "Noise pop"
+      ],
+      "discogs": {
+        "style": [
+          "Noise Pop"
+        ]
+      }
+    },
+    "slowcore": {
+      "wikipedia": [
+        "Slowcore"
+      ],
+      "discogs": {
+        "style": [
+          "Slowcore"
+        ]
+      }
+    },
+    "post_rock": {
+      "wikipedia": [
+        "Post-rock"
+      ],
+      "discogs": {
+        "style": [
+          "Post Rock"
+        ]
+      }
+    },
+    "math_rock": {
+      "wikipedia": [
+        "Math rock"
+      ],
+      "discogs": {
+        "style": [
+          "Math Rock"
+        ]
+      }
+    },
+    "post_hardcore": {
+      "wikipedia": [
+        "Post-hardcore"
+      ],
+      "discogs": {
+        "style": [
+          "Post-Hardcore"
+        ]
+      }
+    },
+    "emo": {
+      "wikipedia": [
+        "Emo"
+      ],
+      "discogs": {
+        "style": [
+          "Emo"
+        ]
+      }
+    },
+    "jangle_pop": {
+      "wikipedia": [
+        "Jangle pop"
+      ],
+      "discogs": {
+        "style": [
+          "Jangle Pop"
+        ]
+      }
+    },
+    "ethereal_wave": {
+      "wikipedia": [
+        "Ethereal wave"
+      ],
+      "discogs": {
+        "style": [
+          "Ethereal"
+        ]
+      }
+    },
+    "space_rock": {
+      "wikipedia": [
+        "Space rock"
+      ],
+      "discogs": {
+        "style": [
+          "Space Rock"
+        ]
+      }
+    },
+    "lo_fi": {
+      "wikipedia": [
+        "Lo-fi music"
+      ],
+      "discogs": {
+        "style": [
+          "Lo-Fi"
+        ]
+      }
+    },
+    "indie_rock": {
+      "wikipedia": [
+        "Indie rock"
+      ],
+      "discogs": {
+        "style": [
+          "Indie Rock"
+        ]
+      }
+    },
+    "alternative_metal": {
+      "wikipedia": [
+        "Alternative metal"
+      ],
+      "discogs": {
+        "style": [
+          "Alternative Metal"
+        ]
+      }
+    },
+    "stoner": {
+      "wikipedia": [
+        "Stoner rock"
+      ],
+      "discogs": {
+        "style": [
+          "Stoner Rock",
+          "Stoner Metal"
+        ]
+      }
+    },
+    "groove_metal": {
+      "wikipedia": [
+        "Groove metal"
+      ],
+      "discogs": {
+        "style": [
+          "Groove Metal"
+        ]
+      }
+    },
+    "nu_metal": {
+      "wikipedia": [
+        "Nu metal"
+      ],
+      "discogs": {
+        "style": [
+          "Nu Metal"
+        ]
+      }
+    },
+    "hard_rock": {
+      "wikipedia": [
+        "Hard rock"
+      ],
+      "discogs": {
+        "style": [
+          "Hard Rock"
+        ]
+      }
+    }
+    ,
+    "progressive_rock": {
+      "wikipedia": [
+        "Progressive rock"
+      ],
+      "discogs": {
+        "style": [
+          "Prog Rock",
+          "Progressive Rock"
+        ]
+      }
+    },
+    "progressive_pop": {
+      "wikipedia": [
+        "Progressive pop"
+      ],
+      "discogs": {
+        "style": [
+          "Progressive Pop"
+        ]
+      }
+    },
+    "art_rock": {
+      "wikipedia": [
+        "Art rock"
+      ],
+      "discogs": {
+        "style": [
+          "Art Rock"
+        ]
+      }
+    }
+  },
+  "aliasToKey": {
+    "boom_bap": "boom_bap",
+    "boom-bap": "boom_bap",
+    "jazzy_hip_hop": "jazz_rap",
+    "jazz_rap": "jazz_rap",
+    "jazz-hop": "jazz_rap",
+    "trip_hop": "trip_hop",
+    "triphop": "trip_hop",
+    "lofi_hip_hop": "lofi_hip_hop",
+    "lo-fi_hip_hop": "lofi_hip_hop",
+    "chillhop": "lofi_hip_hop",
+    "cloud_rap": "cloud_rap",
+    "glitch_hop": "glitch_hop",
+    "glitchhop": "glitch_hop",
+    "industrial_hip_hop": "industrial_hip_hop",
+    "industrial_rap": "industrial_hip_hop",
+    "punk_rap": "punk_rap",
+    "noise_rap": "punk_rap",
+    "instrumental_hip_hop": "instrumental_hip_hop",
+    "beat_tape": "instrumental_hip_hop",
+    "underground_hip_hop": "underground_hip_hop",
+    "underground_rap": "underground_hip_hop",
+    "phonk": "phonk",
+    "memphis_rap": "phonk",
+    "shoegaze": "shoegaze",
+    "nu_gaze": "shoegaze",
+    "nu-gaze": "shoegaze",
+    "dream_pop": "dream_pop",
+    "noise_pop": "noise_pop",
+    "slowcore": "slowcore",
+    "post_rock": "post_rock",
+    "math_rock": "math_rock",
+    "post_hardcore": "post_hardcore",
+    "emo": "emo",
+    "midwest_emo": "emo",
+    "jangle_pop": "jangle_pop",
+    "c86": "jangle_pop",
+    "ethereal_wave": "ethereal_wave",
+    "ethereal": "ethereal_wave",
+    "space_rock": "space_rock",
+    "lo_fi": "lo_fi",
+    "lo-fi": "lo_fi",
+    "indie_rock": "indie_rock",
+    "alternative_metal": "alternative_metal",
+    "alt_metal": "alternative_metal",
+    "stoner": "stoner",
+    "stoner_rock": "stoner",
+    "stoner_metal": "stoner",
+    "groove_metal": "groove_metal",
+    "nu_metal": "nu_metal",
+    "hard_rock": "hard_rock",
+    "prog_rock": "progressive_rock",
+    "progressive_rock": "progressive_rock",
+    "progressive rock": "progressive_rock",
+    "progressive_pop": "progressive_pop",
+    "progressive pop": "progressive_pop",
+    "art_rock": "art_rock",
+    "art rock": "art_rock"
+  }
+}
