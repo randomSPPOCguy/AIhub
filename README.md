@@ -141,7 +141,7 @@ src/
   config.js              # env parsing
   utils/
     logger.js
-    rateLimit.js         # 1 r/s for MusicBrainz
+    rateLimit.js         # 1 r/s for MusicBrainz,
   db/
     connection.js
     migrate.js
@@ -159,4 +159,13 @@ config/
 ```
 
 ## License
-MIT
+
+This project is released under the **AIhub Non-Commercial Attribution License**.
+
+- You may read, modify, and share the code.
+- **You may not use it for commercial purposes** (no selling, no paid hosting, no monetized products built on it).
+- If you reuse parts of this code, please:
+  - Attribute the original project and author: `AIhub` by GitHub user `randomSPPOCguy`.
+  - Briefly mention which parts you reused or adapted (for example: CLI menu system, chat routing, music knowledge integration).
+
+See the `LICENSE` file for full details.

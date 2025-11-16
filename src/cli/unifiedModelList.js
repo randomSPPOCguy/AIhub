@@ -16,6 +16,20 @@ const ansi = {
 };
 
 const color = (text, code) => `${code}${text}${ansi.reset}`;
+const BYTES_PER_GIB = 1024 ** 3;
+
+function pickPrimaryGpu(gpus = []) {
+  if (!Array.isArray(gpus) || gpus.length === 0) return null;
+  const discrete = gpus.find(g => /nvidia|amd|radeon/i.test(g.name || ""));
+  return discrete || gpus[0];
+}
+
+function formatGpuVram(memoryBytes) {
+  if (typeof memoryBytes !== "number" || Number.isNaN(memoryBytes)) return null;
+  const gib = memoryBytes / BYTES_PER_GIB;
+  if (!Number.isFinite(gib) || gib < 0.75) return null;
+  return `${gib.toFixed(1)} GB VRAM`;
+}
 
 /**
  * Build a unified model list combining:
@@ -214,12 +228,17 @@ export function printUnifiedModelList() {
 
   // Hardware info
   if (list.hardware) {
-    const gpu = (list.hardware.gpu || []).find(g => /nvidia/i.test(g.name || ""));
+    const gpu = pickPrimaryGpu(list.hardware.gpu || []);
     if (gpu) {
-      const vram = gpu.memoryBytes ? `${(gpu.memoryBytes / 1_073_741_824).toFixed(1)} GB VRAM` : "";
-      console.log(color(`  💻 GPU: ${gpu.name} ${vram ? `(${vram})` : ""}`, ansi.gray));
+      const normalizedVram = formatGpuVram(gpu.memoryBytes);
+      let vramChunk = "";
+      if (typeof gpu.memoryBytes === "number" && gpu.memoryBytes > 0) {
+        vramChunk = normalizedVram ? `(${normalizedVram})` : "(unknown VRAM)";
+      }
+      console.log(color(`  💻 GPU: ${gpu.name} ${vramChunk}`, ansi.gray));
     }
   }
+
 
   console.log("");
   console.log(color("═══════════════════════════════════════════", ansi.cyan));
@@ -240,3 +259,4 @@ export function getModelByIndex(index) {
   const list = buildUnifiedModelList();
   return list.all.find(m => m.index === parseInt(index));
 }
+

@@ -180,13 +180,20 @@ export async function enrichMusicQuery(message, metadata = {}) {
     return null;
   }
 
-  const facts = [];
+  const promptSegments = [];
+  const displaySegments = [];
 
   // Fetch artist facts
   for (const artistName of entities.artists.slice(0, 2)) { // Limit to 2 artists
     const artistFacts = await fetchArtistFacts(artistName);
     if (artistFacts) {
-      facts.push(formatArtistFacts(artistFacts));
+      const formatted = formatArtistFacts(artistFacts);
+      if (formatted.prompt) {
+        promptSegments.push(formatted.prompt);
+      }
+      if (formatted.display) {
+        displaySegments.push(formatted.display);
+      }
     }
   }
 
@@ -196,25 +203,32 @@ export async function enrichMusicQuery(message, metadata = {}) {
     const artistName = entities.artists[0] || null;
     const songFacts = await fetchSongFacts(songTitle, artistName);
     if (songFacts) {
-      facts.push(formatSongFacts(songFacts));
+      const formatted = formatSongFacts(songFacts);
+      if (formatted.prompt) {
+        promptSegments.push(formatted.prompt);
+      }
+      if (formatted.display) {
+        displaySegments.push(formatted.display);
+      }
     }
   }
 
-  if (facts.length === 0) {
+  if (promptSegments.length === 0) {
     return null;
   }
 
   return {
     entities,
-    factsText: facts.join("\n\n"),
-    factCount: facts.length
+    factsText: promptSegments.join("\n\n"),
+    displayText: displaySegments.length ? displaySegments.join("\n\n") : null,
+    factCount: promptSegments.length
   };
 }
 
 /**
  * Format artist facts for system prompt
  */
-function formatArtistFacts(facts) {
+function buildArtistFactsPrompt(facts) {
   const lines = [`📚 ARTIST FACTS: ${facts.artist}`];
 
   if (facts.source === "wikipedia") {
@@ -257,7 +271,7 @@ function formatArtistFacts(facts) {
 /**
  * Format song facts for system prompt
  */
-function formatSongFacts(facts) {
+function buildSongFactsPrompt(facts) {
   const lines = [`📚 SONG FACTS: "${facts.title}"${facts.artist ? ` by ${facts.artist}` : ""}`];
 
   if (facts.summary) {
@@ -303,4 +317,83 @@ export function isMusicQuery(message) {
   ];
 
   return musicKeywords.some(keyword => text.includes(keyword));
+}
+function buildArtistFactsDisplay(facts) {
+  const segments = [];
+
+  if (facts.summary) {
+    segments.push(`${facts.artist}: ${truncate(facts.summary, 200)}`);
+  } else if (facts.description) {
+    segments.push(`${facts.artist}: ${truncate(facts.description, 200)}`);
+  }
+
+  const genresArray = Array.isArray(facts.genres)
+    ? facts.genres
+    : Array.isArray(facts.genresArray)
+      ? facts.genresArray
+      : [facts.genres].filter(Boolean);
+  if (genresArray.length > 0) {
+    segments.push(`Genres: ${genresArray.slice(0, 5).join(", ")}.`);
+  }
+
+  if (facts.activeYears) {
+    segments.push(`Active years: ${facts.activeYears}.`);
+  }
+  if (facts.origin) {
+    segments.push(`Origin: ${facts.origin}.`);
+  }
+  if (facts.members) {
+    segments.push(`Members: ${facts.members}.`);
+  }
+  if (facts.type) {
+    segments.push(`${facts.artist} is a ${facts.type}.`);
+  }
+  if (facts.country) {
+    segments.push(`Country of origin: ${facts.country}.`);
+  }
+  if (facts.disambiguation) {
+    segments.push(facts.disambiguation);
+  }
+
+  return segments.join(" ").trim();
+}
+
+function buildSongFactsDisplay(facts) {
+  const segments = [];
+
+  if (facts.summary) {
+    const summary = truncate(facts.summary, 200);
+    segments.push(summary.endsWith(".") ? summary : `${summary}.`);
+  }
+  if (facts.album) {
+    segments.push(`Album: ${facts.album}.`);
+  }
+  if (facts.releaseDate || facts.released) {
+    segments.push(`Released: ${facts.releaseDate || facts.released}.`);
+  }
+  if (facts.duration || facts.length) {
+    segments.push(`Duration: ${facts.duration || facts.length}.`);
+  }
+  if (facts.genre) {
+    segments.push(`Genre: ${facts.genre}.`);
+  }
+  if (facts.genres && facts.genres.length > 0) {
+    segments.push(`Genres: ${facts.genres.join(", ")}.`);
+  }
+
+  return segments.join(" ").trim();
+}
+
+function formatArtistFacts(facts) {
+  return {
+    prompt: buildArtistFactsPrompt(facts),
+    display: buildArtistFactsDisplay(facts)
+  };
+}
+
+function formatSongFacts(facts) {
+  return {
+    prompt: buildSongFactsPrompt(facts),
+    display: buildSongFactsDisplay(facts)
+  };
 }
