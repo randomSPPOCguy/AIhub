@@ -1,8 +1,8 @@
-# AI Hub 1.1
+# AI Hub 1.4.1
 
 Local-first harvesting hub for music-sharing rooms. It ingests **song-ended** events, normalizes genres, and harvests metadata from Wikipedia, Discogs, and MusicBrainz (with optional Cover Art). It stores a compact **facts** record per play in SQLite and exposes a tiny REST API for your main LLM (e.g., Gemini) to answer instantly from local data.
 
-## Why 1.1 (what's new vs 1.0)
+## Why 1.4.1 (what's new vs 1.0)
 - Pluggable genre map using Discogs **Style** + Wikipedia **title** for API-friendly lookups.
 - Clean ingest endpoint (`POST /ingest/song-ended`) with schema validation.
 - Provider helpers for Wikipedia REST Summary + Title Search; Discogs Database Search; MusicBrainz Release-Group album count (1 r/s compliant).
