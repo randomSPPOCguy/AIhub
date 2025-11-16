@@ -1,0 +1,36 @@
+AIhub Non-Commercial Attribution License
+Version 1.0
+
+Copyright (c) 2024 Mark (GitHub: randomSPPOCguy)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to use, copy, modify, merge, publish, and redistribute the Software, subject to the following conditions:
+
+1. Non-Commercial Use Only
+   The Software may not be used, in whole or in part, for any commercial purpose.
+   "Commercial purpose" means any use that is intended for or directed toward commercial advantage or monetary compensation, including but not limited to:
+   - selling the Software or any derivative work;
+   - offering the Software or any derivative work as a paid service;
+   - incorporating the Software or any derivative work into a product or service that is sold, licensed for a fee, or otherwise monetized.
+
+2. Attribution
+   Any use, copy, modification, or redistribution of the Software, or any substantial portion of it, must include a clear attribution to the original author:
+   - Include the following notice in documentation, README files, or an equivalent prominent location:
+
+     "This project uses code from the AIhub project by GitHub user randomSPPOCguy."
+
+   - When reusing specific parts of the Software (for example, functions, modules, or architectural patterns), you must additionally:
+     - State which parts were reused or adapted (e.g., "chat routing logic", "music knowledge integration", "CLI menu system");
+     - Provide a link to the original repository if reasonably possible.
+
+3. No Trademark Rights
+   This license does not grant permission to use the names, logos, or trademarks of the author.
+
+4. No Warranty
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+5. No Additional Restrictions
+   You may not impose any additional or different terms or conditions on the Software that contradict or circumvent the terms of this license.
+
+By using, copying, modifying, or redistributing the Software, you indicate your acceptance of this license and its conditions.
+
+
