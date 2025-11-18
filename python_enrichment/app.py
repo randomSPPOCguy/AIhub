@@ -27,6 +27,16 @@ try:
     )
     from .providers.wikipedia import enrich_wikipedia, set_trace_id as set_wikipedia_trace_id
     from .providers.musicbrainz import enrich_musicbrainz, set_trace_id as set_musicbrainz_trace_id
+    from .providers.multi_source_orchestrator import (
+        enrich_artist_multi_source,
+        enrich_music_entity,
+        set_trace_id as set_orchestrator_trace_id
+    )
+    from .providers.wikipedia_enhanced import (
+        get_wikipedia_page,
+        is_music_related_wikipedia,
+        set_trace_id as set_wikipedia_enhanced_trace_id
+    )
 except ImportError:
     from models import (
         EnrichRequest,
@@ -47,6 +57,16 @@ except ImportError:
     )
     from providers.wikipedia import enrich_wikipedia, set_trace_id as set_wikipedia_trace_id
     from providers.musicbrainz import enrich_musicbrainz, set_trace_id as set_musicbrainz_trace_id
+    from providers.multi_source_orchestrator import (
+        enrich_artist_multi_source,
+        enrich_music_entity,
+        set_trace_id as set_orchestrator_trace_id
+    )
+    from providers.wikipedia_enhanced import (
+        get_wikipedia_page,
+        is_music_related_wikipedia,
+        set_trace_id as set_wikipedia_enhanced_trace_id
+    )
 
 app = FastAPI(title="AIhub Enrichment Service", version=config.SERVICE_VERSION)
 
@@ -54,6 +74,11 @@ app = FastAPI(title="AIhub Enrichment Service", version=config.SERVICE_VERSION)
 def extract_subjects(text: str, room: Optional[RoomContext] = None) -> List[Dict[str, str]]:
     """
     Extract potential subjects from text and room context.
+
+    MUSIC-FIRST APPROACH:
+    - When extracting subjects, assume music context (artist/band names)
+    - Prioritize artist names over generic topics
+    - Default to "artist" type unless other context detected
 
     Args:
         text: Input text
@@ -64,7 +89,7 @@ def extract_subjects(text: str, room: Optional[RoomContext] = None) -> List[Dict
     """
     subjects = []
 
-    # Add subjects from room context
+    # Add subjects from room context (music-specific)
     if room and room.now_playing:
         if room.now_playing.artist:
             subjects.append({"name": room.now_playing.artist, "type": "artist"})
@@ -74,6 +99,10 @@ def extract_subjects(text: str, room: Optional[RoomContext] = None) -> List[Dict
     # Extract from question patterns
     text_lower = text.lower()
 
+    # Detect entity type from context keywords
+    is_album_query = any(word in text_lower for word in ["album", "record", "lp", "ep", "release"])
+    is_track_query = any(word in text_lower for word in ["song", "track", "single", "tune"])
+
     # Pattern 1: "who is [ENTITY]?" or "what is [ENTITY]?"
     who_match = re.search(r'(?:who|what)(?:\'s| is) ([^?]+)', text_lower)
     if who_match:
@@ -81,7 +110,16 @@ def extract_subjects(text: str, room: Optional[RoomContext] = None) -> List[Dict
         # Clean up common words
         entity = re.sub(r'\s+(the|a|an)\s+', ' ', entity).strip()
         if entity and entity not in [s["name"].lower() for s in subjects]:
-            subjects.append({"name": entity.title(), "type": "artist"})
+            # Determine type based on context
+            if is_album_query:
+                entity_type = "album"
+            elif is_track_query:
+                entity_type = "track"
+            else:
+                # Default to artist (MUSIC-FIRST)
+                entity_type = "artist"
+
+            subjects.append({"name": entity.title(), "type": entity_type})
 
     # Pattern 2: "tell me about [ENTITY]" or "what about [ENTITY]"
     about_match = re.search(r'(?:tell me about|what about|about) ([^?]+)', text_lower)
@@ -89,20 +127,34 @@ def extract_subjects(text: str, room: Optional[RoomContext] = None) -> List[Dict
         entity = about_match.group(1).strip()
         entity = re.sub(r'\s+(the|a|an)\s+', ' ', entity).strip()
         if entity and entity not in [s["name"].lower() for s in subjects]:
-            subjects.append({"name": entity.title(), "type": "artist"})
+            # Determine type based on context
+            if is_album_query:
+                entity_type = "album"
+            elif is_track_query:
+                entity_type = "track"
+            else:
+                # Default to artist (MUSIC-FIRST)
+                entity_type = "artist"
 
-    # Pattern 3: Look for quoted strings
+            subjects.append({"name": entity.title(), "type": entity_type})
+
+    # Pattern 3: Look for quoted strings (usually song/album titles)
     quoted = re.findall(r'"([^"]+)"', text)
     for quote in quoted:
         if quote not in [s["name"] for s in subjects]:
-            subjects.append({"name": quote, "type": "topic"})
+            # Quoted strings are usually track or album names
+            if is_album_query:
+                subjects.append({"name": quote, "type": "album"})
+            else:
+                subjects.append({"name": quote, "type": "track"})
 
     # Pattern 4: Look for capitalized proper nouns (multi-word names)
-    # This catches things like "Wet Leg" or "Mike Jones"
+    # This catches things like "Wet Leg", "Poe", "Radiohead"
     if not subjects:
         capitalized = re.findall(r'\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b', text)
         for cap in capitalized:
             if cap.lower() not in ['i', 'bot'] and cap not in [s["name"] for s in subjects]:
+                # Default to artist (MUSIC-FIRST)
                 subjects.append({"name": cap, "type": "artist"})
 
     # If still no subjects found, use key content words (skip question words)
@@ -112,7 +164,8 @@ def extract_subjects(text: str, room: Optional[RoomContext] = None) -> List[Dict
         words = cleaned.split()
         meaningful = [w for w in words if len(w) > 2][:3]
         if meaningful:
-            subjects.append({"name": " ".join(meaningful).title(), "type": "topic"})
+            # Default to artist (MUSIC-FIRST)
+            subjects.append({"name": " ".join(meaningful).title(), "type": "artist"})
 
     return subjects
 
@@ -166,6 +219,11 @@ async def call_providers(
     """
     Call enabled providers for each subject.
 
+    MUSIC-FIRST APPROACH:
+    - For music entities (artists, albums, tracks), use multi-source orchestrator
+    - Multi-source orchestrator calls MusicBrainz FIRST, then uses Wikipedia metadata from MB
+    - This ensures correct Wikipedia pages (e.g., "Radiohead" not "Radio_head")
+
     Args:
         subjects: List of subjects to enrich
         language: Language code
@@ -182,10 +240,78 @@ async def call_providers(
     # Set trace ID for providers
     set_wikipedia_trace_id(trace_id)
     set_musicbrainz_trace_id(trace_id)
+    set_orchestrator_trace_id(trace_id)
+    set_wikipedia_enhanced_trace_id(trace_id)
 
     for subject_info in subjects:
         subject_name = subject_info["name"]
         subject_type = subject_info["type"]
+
+        # MUSIC-FIRST: Use multi-source orchestrator for music entities
+        if subject_type in ["artist", "album", "track"] and config.ENRICH_MUSICBRAINZ_ENABLED:
+            try:
+                # Use multi-source orchestrator (MusicBrainz → Wikipedia flow)
+                orchestrator_result = await enrich_artist_multi_source(subject_name, trace_id)
+
+                if orchestrator_result:
+                    # Extract subject data
+                    subject_result = {
+                        "name": orchestrator_result.get("name", subject_name),
+                        "type": subject_type,
+                        "ids": orchestrator_result.get("ids", {}),
+                        "urls": orchestrator_result.get("urls", {}),
+                        "metadata": orchestrator_result.get("metadata", {}),
+                    }
+
+                    subjects_data.append(subject_result)
+
+                    # Add facts from orchestrator
+                    orchestrator_facts = orchestrator_result.get("facts", [])
+                    facts.extend(orchestrator_facts)
+
+                    # Add sources from orchestrator
+                    orchestrator_sources = orchestrator_result.get("sources", [])
+                    sources.extend(orchestrator_sources)
+
+                    continue  # Skip to next subject (orchestrator handled everything)
+
+                else:
+                    # MusicBrainz not found - check if Wikipedia has disambiguation
+                    if config.ENRICH_WIKIPEDIA_ENABLED:
+                        wiki_data = await get_wikipedia_page(subject_name, language)
+
+                        if wiki_data and wiki_data.get("is_disambiguation"):
+                            # Return disambiguation response
+                            subject_result = {
+                                "name": subject_name,
+                                "type": "disambiguation",
+                                "requires_clarification": True,
+                                "disambiguation_options": wiki_data.get("disambiguation_options", []),
+                                "music_options": wiki_data.get("music_options", []),
+                                "has_music_options": wiki_data.get("has_music_options", False),
+                                "prompt": _create_disambiguation_prompt(subject_name, wiki_data.get("disambiguation_options", [])),
+                            }
+
+                            subjects_data.append(subject_result)
+
+                            # Add facts explaining disambiguation needed
+                            facts.append(f"Multiple meanings found for '{subject_name}'. User clarification needed.")
+
+                            sources.append({
+                                "provider": "wikipedia",
+                                "url": wiki_data.get("url", ""),
+                                "title": wiki_data.get("title", subject_name),
+                                "language": language,
+                                "type": "disambiguation"
+                            })
+
+                            continue  # Skip to next subject
+
+            except Exception as e:
+                log_error(trace_id, f"Multi-source orchestrator error for {subject_name}: {str(e)}")
+                # Fall through to legacy provider approach
+
+        # Legacy approach for non-music entities or if orchestrator failed
         subject_result = {
             "name": subject_name,
             "type": subject_type,
@@ -236,6 +362,34 @@ async def call_providers(
         subjects_data.append(subject_result)
 
     return subjects_data, facts, sources
+
+
+def _create_disambiguation_prompt(subject_name: str, options: List[Dict[str, Any]]) -> str:
+    """
+    Create user-friendly disambiguation prompt.
+
+    Args:
+        subject_name: The subject name
+        options: Disambiguation options
+
+    Returns:
+        Disambiguation prompt string
+    """
+    if not options:
+        return f"Multiple meanings found for '{subject_name}'."
+
+    # Get top 3 options
+    top_options = options[:3]
+    labels = [opt.get("label", "") for opt in top_options if opt.get("label")]
+
+    if len(labels) == 0:
+        return f"Multiple meanings found for '{subject_name}'."
+    elif len(labels) == 1:
+        return f"Did you mean {labels[0]}?"
+    elif len(labels) == 2:
+        return f"Did you mean {labels[0]} or {labels[1]}?"
+    else:
+        return f"Did you mean {', '.join(labels[:-1])}, or {labels[-1]}?"
 
 
 def compute_confidence(subjects_data: List[Dict], facts: List[str], sources: List[Dict]) -> float:

@@ -23,6 +23,156 @@ except ImportError:
     log_provider_call = logging_module.log_provider_call
 
 
+# Music-related markers in Wikipedia URLs/titles
+MUSIC_MARKERS = [
+    "(band)", "(artist)", "(singer)", "(musician)", "(group)",
+    "(rapper)", "(composer)", "(producer)", "(dj)",
+    "(album)", "(song)", "(ep)", "(single)",
+    "(record_producer)", "(musical_artist)", "(music_group)"
+]
+
+
+def is_music_related_wikipedia(url_or_title: str) -> bool:
+    """
+    Check if Wikipedia URL or title is music-related.
+
+    Args:
+        url_or_title: Wikipedia URL or page title
+
+    Returns:
+        True if music-related, False otherwise
+    """
+    text_lower = url_or_title.lower()
+    return any(marker in text_lower for marker in MUSIC_MARKERS)
+
+
+def is_disambiguation_page(title: str, summary: str, url: str = "") -> bool:
+    """
+    Check if Wikipedia page is a disambiguation page.
+
+    Args:
+        title: Page title
+        summary: Page summary/extract
+        url: Page URL (optional)
+
+    Returns:
+        True if disambiguation page, False otherwise
+    """
+    title_lower = title.lower()
+    summary_lower = summary.lower()
+
+    # Check title
+    if "disambiguation" in title_lower:
+        return True
+
+    # Check summary for disambiguation markers
+    disambiguation_markers = [
+        "may refer to",
+        "may also refer to",
+        "can refer to",
+        "disambiguation page",
+        "disambiguation)",
+        "other uses, see",
+    ]
+
+    for marker in disambiguation_markers:
+        if marker in summary_lower:
+            return True
+
+    return False
+
+
+def extract_disambiguation_options(title: str, summary: str) -> List[Dict[str, Any]]:
+    """
+    Extract disambiguation options from Wikipedia disambiguation page.
+
+    Args:
+        title: Page title
+        summary: Page summary text
+
+    Returns:
+        List of disambiguation options with labels, paths, and keywords
+    """
+    options = []
+
+    # Parse summary for options
+    # Typically in format: "X may refer to: \n* Option 1 (description)\n* Option 2 (description)"
+    lines = summary.split('\n')
+
+    for line in lines:
+        line = line.strip()
+        if not line or len(line) < 5:
+            continue
+
+        # Skip the main "may refer to" line
+        if "may refer to" in line.lower() or "can refer to" in line.lower():
+            continue
+
+        # Look for list items or comma-separated options
+        # Example: "Poe (singer), American musician"
+        # Example: "Edgar Allan Poe (1809–1849), American writer"
+
+        # Extract text in parentheses
+        import re
+        parentheses_match = re.search(r'\(([^)]+)\)', line)
+
+        label = line.split(',')[0].strip() if ',' in line else line
+
+        # Determine if music-related
+        is_music = False
+        keywords = []
+        path = "other"
+
+        if parentheses_match:
+            paren_text = parentheses_match.group(1).lower()
+
+            # Check for music markers
+            for marker in MUSIC_MARKERS:
+                marker_clean = marker.strip('()')
+                if marker_clean in paren_text:
+                    is_music = True
+                    path = "music"
+                    keywords.append("music")
+                    keywords.append(marker_clean)
+                    break
+
+        # Check line content for music keywords
+        line_lower = line.lower()
+        music_keywords = ["singer", "musician", "band", "artist", "rapper", "composer", "album", "song"]
+        for kw in music_keywords:
+            if kw in line_lower:
+                is_music = True
+                path = "music"
+                if kw not in keywords:
+                    keywords.append(kw)
+
+        # Check for historical/literary markers
+        historical_keywords = ["writer", "author", "poet", "president", "politician", "historical"]
+        for kw in historical_keywords:
+            if kw in line_lower:
+                if path == "other":  # Don't override music
+                    path = "historical"
+                if kw not in keywords:
+                    keywords.append(kw)
+
+        # Create Wikipedia title from label
+        wikipedia_title = label.strip()
+
+        options.append({
+            "label": label,
+            "path": path,
+            "wikipedia_title": wikipedia_title,
+            "keywords": keywords,
+            "is_music": is_music,
+            "raw_text": line
+        })
+
+    # Sort: music options first
+    options.sort(key=lambda x: (not x["is_music"], x["label"]))
+
+    return options
+
+
 async def _retry_with_backoff(
     func, max_retries: int = None, base_delay: float = 0.1
 ) -> Optional[Any]:
@@ -113,6 +263,9 @@ async def get_wikipedia_page(page_title: str, language: str = "en") -> Optional[
                         discography_section = section
                         break
 
+                # Check if this is a disambiguation page
+                is_disambig = is_disambiguation_page(title, extract, url)
+
                 result = {
                     "title": title,
                     "summary": extract,
@@ -121,7 +274,19 @@ async def get_wikipedia_page(page_title: str, language: str = "en") -> Optional[
                     "sections": sections,
                     "has_discography": discography_section is not None,
                     "discography_section": discography_section,
+                    "is_disambiguation": is_disambig,
+                    "is_music_related": is_music_related_wikipedia(url) if url else is_music_related_wikipedia(title),
                 }
+
+                # If disambiguation, extract options
+                if is_disambig:
+                    options = extract_disambiguation_options(title, extract)
+                    result["disambiguation_options"] = options
+
+                    # Filter for music options
+                    music_options = [opt for opt in options if opt["is_music"]]
+                    result["has_music_options"] = len(music_options) > 0
+                    result["music_options"] = music_options
 
                 return result
 
