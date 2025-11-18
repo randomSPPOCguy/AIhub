@@ -8,6 +8,21 @@ import { logger } from "../utils/logger.js";
 const enrichLogLevel = (process.env.ENRICH_LOG_LEVEL || "").toLowerCase();
 const ENRICH_MODE = ["quiet", "debug"].includes(enrichLogLevel) ? enrichLogLevel : "standard";
 const FORCE_DEBUG = ENRICH_MODE === "debug";
+const ENRICH_BACKOFF_MS = 15000;
+
+let enrichUnavailableUntil = 0;
+let enrichUnavailableReason = "";
+
+const inBackoffWindow = () => Date.now() < enrichUnavailableUntil;
+
+const startBackoff = (reason) => {
+  enrichUnavailableUntil = Date.now() + ENRICH_BACKOFF_MS;
+  enrichUnavailableReason = reason || "unknown";
+  logEnrich("warn", "Enrichment temporarily disabled after connection failure", {
+    retryInMs: ENRICH_BACKOFF_MS,
+    reason: enrichUnavailableReason
+  });
+};
 
 const truncateText = (value = "") => {
   const normalized = value.trim().replace(/\s+/g, " ");
@@ -61,6 +76,14 @@ export async function callEnrichment({ text, room, hints, traceId }) {
   // Check if enrichment is enabled
   if (!cfg.enrich.enabled) {
     logEnrich("info", "Skipping enrichment (disabled via config)");
+    return null;
+  }
+
+  if (inBackoffWindow()) {
+    logEnrich("warn", "Skipping enrichment (service recently unreachable)", {
+      retryInMs: Math.max(0, enrichUnavailableUntil - Date.now()),
+      reason: enrichUnavailableReason || "previous failure"
+    });
     return null;
   }
 
@@ -145,14 +168,24 @@ export async function callEnrichment({ text, room, hints, traceId }) {
   } catch (error) {
     clearTimeout(timeoutId);
 
+    const status = error?.status || error?.code || null;
+    const connectionErrorCodes = ["ECONNREFUSED", "ECONNRESET", "ENOTFOUND"];
+
     if (error.name === "AbortError") {
-      logEnrich("error", "Timeout", {
+      logEnrich("warn", "Timeout contacting enrichment service", {
         traceId: trace_id,
         timeoutMs: cfg.enrich.timeout,
         text: textPreview
       });
+      startBackoff("timeout");
+    } else if (connectionErrorCodes.includes(status)) {
+      logEnrich("warn", "Enrichment service unreachable", {
+        traceId: trace_id,
+        status,
+        error: error?.message || String(error)
+      });
+      startBackoff(status);
     } else {
-      const status = error?.status || error?.code || null;
       logEnrich("error", `Failed text="${textPreview}" status=${status ?? "n/a"}`, {
         traceId: trace_id,
         error: error?.message || String(error)
