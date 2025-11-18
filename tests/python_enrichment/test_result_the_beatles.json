@@ -1,0 +1,85 @@
+{
+  "mbid": "b10bbbfc-cf9e-42e0-be17-e2c3e1d2600d",
+  "name": "The Beatles",
+  "wikidata_id": "Q1299",
+  "urls": {
+    "musicbrainz": "https://musicbrainz.org/artist/b10bbbfc-cf9e-42e0-be17-e2c3e1d2600d",
+    "wikidata": "https://www.wikidata.org/wiki/Q1299",
+    "official": "https://www.thebeatles.com/"
+  },
+  "albums_from_mb": [
+    {
+      "title": "Please Please Me",
+      "date": "1963-03-22",
+      "type": "Album",
+      "mbid": "de208292-8db5-3aed-a14a-b37a84d8c521"
+    },
+    {
+      "title": "With The Beatles",
+      "date": "1963-11-22",
+      "type": "Album",
+      "mbid": "a63dc65f-09f2-359b-a10e-648f00ecd96c"
+    },
+    {
+      "title": "Introducing… The Beatles",
+      "date": "1964-01-10",
+      "type": "Album",
+      "mbid": "653895d1-b592-3758-8bb1-8b9ba2bd6cb0"
+    },
+    {
+      "title": "Meet The Beatles!",
+      "date": "1964-01-20",
+      "type": "Album",
+      "mbid": "c2c696fc-6beb-3dfb-bb15-7bb021ebeb5d"
+    },
+    {
+      "title": "Twist and Shout",
+      "date": "1964-02-03",
+      "type": "Album",
+      "mbid": "31770e0a-e537-376d-a7c0-48e507f3105e"
+    },
+    {
+      "title": "The Beatles’ Second Album",
+      "date": "1964-04-10",
+      "type": "Album",
+      "mbid": "387bc6cc-ac60-365f-819b-fbc78c486065"
+    },
+    {
+      "title": "The Beatles’ Long Tall Sally",
+      "date": "1964-05-11",
+      "type": "Album",
+      "mbid": "d0c93a59-fc4d-3d76-ac38-9c1d11071802"
+    },
+    {
+      "title": "Something New",
+      "date": "1964-07-20",
+      "type": "Album",
+      "mbid": "451e7aa4-a782-3979-9aa0-98c03a246fe9"
+    },
+    {
+      "title": "Beatles for Sale",
+      "date": "1964-12-04",
+      "type": "Album",
+      "mbid": "f50a3b6f-27f0-3832-bd3f-3568dc557d95"
+    },
+    {
+      "title": "Beatles ’65",
+      "date": "1964-12-15",
+      "type": "Album",
+      "mbid": "2d111aea-50f8-33cc-ab63-780bc57068c0"
+    }
+  ],
+  "album_count": 10,
+  "facts": [
+    "Discography: Please Please Me (1963), With The Beatles (1963), Introducing… The Beatles (1964), Meet The Beatles! (1964), Twist and Shout (1964) and 5 more albums",
+    "The Beatles has released 10 studio albums"
+  ],
+  "sources": [
+    {
+      "provider": "musicbrainz",
+      "url": "https://musicbrainz.org/artist/b10bbbfc-cf9e-42e0-be17-e2c3e1d2600d",
+      "title": "The Beatles",
+      "section": "Discography"
+    }
+  ]
+}

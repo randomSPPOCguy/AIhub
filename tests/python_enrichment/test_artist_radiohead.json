@@ -1,0 +1,254 @@
+{
+  "type": "artist",
+  "name": "Radiohead",
+  "mbid": "a74b1b7f-71a5-4011-9441-d0b5e4122711",
+  "ids": {
+    "musicbrainz": "a74b1b7f-71a5-4011-9441-d0b5e4122711",
+    "discogs": "3840",
+    "spotify": "4Z8W4fKeB5YxbusRsdQVPb",
+    "wikidata": "Q44190"
+  },
+  "urls": {
+    "allmusic": "https://www.allmusic.com/artist/mn0000326249",
+    "discogs": "https://www.discogs.com/artist/3840",
+    "spotify": "https://open.spotify.com/artist/4Z8W4fKeB5YxbusRsdQVPb",
+    "lastfm": "https://www.last.fm/music/Radiohead",
+    "official": "http://www.radiohead.com/",
+    "apple_music": "https://music.apple.com/gb/artist/657515",
+    "twitter": "https://twitter.com/radiohead",
+    "facebook": "https://www.facebook.com/radiohead",
+    "instagram": "https://www.instagram.com/radiohead/",
+    "wikidata": "https://www.wikidata.org/wiki/Q44190",
+    "youtube": "https://music.youtube.com/channel/UCr_iyUANcn9OX_yy9piYoLw"
+  },
+  "context": "artist",
+  "facts": [
+    "Radiohead is a group active from 1991 - present",
+    "From GB",
+    "Genres: alternative rock, art pop, art rock, electronic, electronica",
+    "Released 25 studio albums",
+    "Albums: Pablo Honey (1993), The Bends (1994), 27 5 94: The Astoria London Live (1995), OK Computer (1997), 1997-06-28: Glastonbury Festival of Contemporary Performing Arts (1997) and 20 more"
+  ],
+  "sources": [
+    {
+      "provider": "musicbrainz",
+      "url": "",
+      "sections": [
+        "discography",
+        "metadata",
+        "relationships"
+      ]
+    }
+  ],
+  "metadata": {
+    "total_releases": 25,
+    "albums": 25,
+    "singles": 0,
+    "eps": 0,
+    "genres": [
+      "alternative rock",
+      "art pop",
+      "art rock",
+      "electronic",
+      "electronica",
+      "experimental",
+      "experimental rock",
+      "indie rock",
+      "post-britpop",
+      "rock"
+    ],
+    "tags": [
+      "alternative",
+      "alternative rock",
+      "alternative rock music",
+      "art pop",
+      "art rock",
+      "british",
+      "electronic",
+      "electronica",
+      "experimental",
+      "experimental rock"
+    ]
+  },
+  "discography": {
+    "albums": [
+      {
+        "mbid": "cd76f76b-ff15-3784-a71d-4da3078a6851",
+        "title": "Pablo Honey",
+        "type": "Album",
+        "first_release_date": "1993-02-22",
+        "year": "1993"
+      },
+      {
+        "mbid": "b8048f24-c026-3398-b23a-b5e50716cbc7",
+        "title": "The Bends",
+        "type": "Album",
+        "first_release_date": "1994-11-29",
+        "year": "1994"
+      },
+      {
+        "mbid": "0ef22186-e92d-4f03-9b05-500fa2d581ad",
+        "title": "27 5 94: The Astoria London Live",
+        "type": "Album",
+        "first_release_date": "1995-05-17",
+        "year": "1995"
+      },
+      {
+        "mbid": "b1392450-e666-3926-a536-22c65f834433",
+        "title": "OK Computer",
+        "type": "Album",
+        "first_release_date": "1997-05-21",
+        "year": "1997"
+      },
+      {
+        "mbid": "441803f3-eb4d-3847-93cf-ab473cf0b8ec",
+        "title": "1997-06-28: Glastonbury Festival of Contemporary Performing Arts",
+        "type": "Album",
+        "first_release_date": "1997-06-28",
+        "year": "1997"
+      },
+      {
+        "mbid": "e75c0549-ad55-39e3-8025-c72c5d4a3c5d",
+        "title": "Kid A",
+        "type": "Album",
+        "first_release_date": "2000-08-03",
+        "year": "2000"
+      },
+      {
+        "mbid": "bca9280e-28b4-327f-8fe0-fd918579e486",
+        "title": "Amnesiac",
+        "type": "Album",
+        "first_release_date": "2001-06-04",
+        "year": "2001"
+      },
+      {
+        "mbid": "e404b349-7cef-398f-ac5e-ce06737341d1",
+        "title": "I Might Be Wrong: Live Recordings",
+        "type": "Album",
+        "first_release_date": "2001-11-07",
+        "year": "2001"
+      },
+      {
+        "mbid": "5c14fd50-a2f1-3672-9537-b0dad91bea2f",
+        "title": "Hail to the Thief",
+        "type": "Album",
+        "first_release_date": "2003-05-26",
+        "year": "2003"
+      },
+      {
+        "mbid": "11f16b31-da2e-48b8-90a1-f65014bc8262",
+        "title": "Greenhouse Effect vs. Radiohead",
+        "type": "Album",
+        "first_release_date": "2005-08",
+        "year": "2005"
+      },
+      {
+        "mbid": "6e335887-60ba-38f0-95af-fae7774336bf",
+        "title": "In Rainbows",
+        "type": "Album",
+        "first_release_date": "2007-10-10",
+        "year": "2007"
+      },
+      {
+        "mbid": "b7db08f4-835a-4a69-970b-5321e6305032",
+        "title": "Album Box Set",
+        "type": "Album",
+        "first_release_date": "2007-12-10",
+        "year": "2007"
+      },
+      {
+        "mbid": "d8dd81ab-d840-4663-8da3-d8c27c2eaf91",
+        "title": "Radiohead Box",
+        "type": "Album",
+        "first_release_date": "2008-01-01",
+        "year": "2008"
+      },
+      {
+        "mbid": "80975c59-4094-30d5-bb58-365e8b061274",
+        "title": "The Best Of",
+        "type": "Album",
+        "first_release_date": "2008-05-28",
+        "year": "2008"
+      },
+      {
+        "mbid": "d2f48ef0-9a77-42bc-95af-89dd0c8452b4",
+        "title": "In Rainbows: From the Basement",
+        "type": "Album",
+        "first_release_date": "2008-06-24",
+        "year": "2008"
+      },
+      {
+        "mbid": "270ff9af-bcfb-402c-8e6b-d1372a1e8824",
+        "title": "The Interview",
+        "type": "Album",
+        "first_release_date": "2010-08-23",
+        "year": "2010"
+      },
+      {
+        "mbid": "899b6d09-807e-4c18-a6d4-3642e00d6a3d",
+        "title": "The King of Limbs",
+        "type": "Album",
+        "first_release_date": "2011-02-18",
+        "year": "2011"
+      },
+      {
+        "mbid": "f1b5c8a1-a597-40c5-b244-f3c0f34f83ee",
+        "title": "TKOL RMX 1 2 3 4 5 6 7",
+        "type": "Album",
+        "first_release_date": "2011-09-21",
+        "year": "2011"
+      },
+      {
+        "mbid": "30f765ef-d7f0-4cce-8a3b-d6e1069f1dda",
+        "title": "5 Album Set",
+        "type": "Album",
+        "first_release_date": "2012-10-12",
+        "year": "2012"
+      },
+      {
+        "mbid": "6ac50c71-cfbf-4f6d-acb0-84af1462aae3",
+        "title": "1995-06-01: PASTE.COM Presents: Radiohead Live at Tramps: New York, NY, USA",
+        "type": "Album",
+        "first_release_date": "2013-06-21",
+        "year": "2013"
+      },
+      {
+        "mbid": "bbce0087-d386-4246-a51d-dbcdfdbe8fb2",
+        "title": "A Moon Shaped Pool",
+        "type": "Album",
+        "first_release_date": "2016-05-08",
+        "year": "2016"
+      },
+      {
+        "mbid": "1af3fda4-4281-4ed9-ba38-389ed83d9ab2",
+        "title": "MINIDISCS [HACKED]",
+        "type": "Album",
+        "first_release_date": "2019-06-05",
+        "year": "2019"
+      },
+      {
+        "mbid": "b9e65b67-32e2-45ac-9e6b-cad36c248c14",
+        "title": "1997‐07‐04: Eurockéennes Festival, Belfort, France",
+        "type": "Album",
+        "first_release_date": "2020-07-02",
+        "year": "2020"
+      },
+      {
+        "mbid": "6f25f9fb-e9e3-4c0d-8904-ecb8b46cd8aa",
+        "title": "KID A MNESIA",
+        "type": "Album",
+        "first_release_date": "2021-11-05",
+        "year": "2021"
+      },
+      {
+        "mbid": "44419ec0-d44a-4ec5-875c-d08f5c7ec13c",
+        "title": "Hail to the Thief: Live Recordings 2003–2009",
+        "type": "Album",
+        "first_release_date": "2025-08-13",
+        "year": "2025"
+      }
+    ],
+    "singles": [],
+    "eps": []
+  }
+}

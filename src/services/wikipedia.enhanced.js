@@ -1,6 +1,13 @@
 // src/services/wikipedia.enhanced.js
 // Enhanced Wikipedia API helpers with proper disambiguation, search fallback, and cover detection
 
+import { logger } from "../utils/logger.js";
+
+const wikiInfo = (message, meta) => logger.info(`[WIKI] ${message}`, meta);
+const wikiWarn = (message, meta) => logger.warn(`[WIKI] ${message}`, meta);
+const wikiError = (message, meta) => logger.error(`[WIKI] ${message}`, meta);
+const wikiDebug = (message, meta) => logger.debug(`[WIKI] ${message}`, meta);
+
 // Simple sleep helper
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -27,7 +34,7 @@ export async function getWikiSummary(articleTitle) {
     summaryCache.set(cacheKey, data);
     return data;
   } catch (err) {
-    console.error(`[WIKI] getWikiSummary error for "${articleTitle}":`, err.message);
+    wikiError(`[WIKI] getWikiSummary error for "${articleTitle}":`, err.message);
     return null;
   }
 }
@@ -47,7 +54,7 @@ export async function getWikiExtractFull(articleTitle) {
     const pageId = Object.keys(pages)[0];
     return pages[pageId]?.extract || null;
   } catch (err) {
-    console.error(`[WIKI] getWikiExtractFull error:`, err.message);
+    wikiError(`[WIKI] getWikiExtractFull error:`, err.message);
     return null;
   }
 }
@@ -71,7 +78,7 @@ export async function searchWikipedia(query) {
     searchCache.set(cacheKey, results);
     return results;
   } catch (err) {
-    console.error(`[WIKI] searchWikipedia error:`, err.message);
+    wikiError(`[WIKI] searchWikipedia error:`, err.message);
     return [];
   }
 }
@@ -144,37 +151,37 @@ export async function getWikiInfobox(articleTitle) {
   const encoded = encodeURIComponent(articleTitle);
   const url = `https://en.wikipedia.org/w/api.php?action=query&prop=revisions&titles=${encoded}&rvprop=content&format=json&rvslots=main`;
   
-  console.log(`[WIKI] getWikiInfobox fetching: "${articleTitle}"`);
+  wikiDebug(`[WIKI] getWikiInfobox fetching: "${articleTitle}"`);
   
   try {
     const response = await fetch(url);
     if (!response.ok) {
-      console.log(`[WIKI] getWikiInfobox fetch failed:`, response.status);
+      wikiDebug(`[WIKI] getWikiInfobox fetch failed:`, response.status);
       return null;
     }
     
     const data = await response.json();
     const pages = data?.query?.pages;
     if (!pages) {
-      console.log(`[WIKI] getWikiInfobox no pages in response`);
+      wikiDebug(`[WIKI] getWikiInfobox no pages in response`);
       return null;
     }
     
     const pageId = Object.keys(pages)[0];
     const content = pages[pageId]?.revisions?.[0]?.slots?.main?.['*'];
     if (!content) {
-      console.log(`[WIKI] getWikiInfobox no content for pageId:`, pageId);
+      wikiDebug(`[WIKI] getWikiInfobox no content for pageId:`, pageId);
       return null;
     }
     
     // Find the infobox - handle nested braces properly
     const infoboxStart = content.indexOf('{{Infobox');
     if (infoboxStart === -1) {
-      console.log(`[WIKI] getWikiInfobox no {{Infobox found in content`);
+      wikiDebug(`[WIKI] getWikiInfobox no {{Infobox found in content`);
       return null;
     }
     
-    console.log(`[WIKI] getWikiInfobox found infobox at position:`, infoboxStart);
+    wikiDebug(`[WIKI] getWikiInfobox found infobox at position:`, infoboxStart);
     
     // Find matching closing braces
     let braceCount = 0;
@@ -194,11 +201,11 @@ export async function getWikiInfobox(articleTitle) {
     }
     
     if (infoboxEnd === -1) {
-      console.log(`[WIKI] getWikiInfobox couldn't find closing braces`);
+      wikiDebug(`[WIKI] getWikiInfobox couldn't find closing braces`);
       return null;
     }
     
-    console.log(`[WIKI] getWikiInfobox extracted infobox, length:`, infoboxEnd - infoboxStart);
+    wikiDebug(`[WIKI] getWikiInfobox extracted infobox, length:`, infoboxEnd - infoboxStart);
     
     const infoboxContent = content.substring(infoboxStart, infoboxEnd);
     const fields = {};
@@ -261,12 +268,12 @@ export async function getWikiInfobox(articleTitle) {
       }
     }
     
-    console.log(`[WIKI] getWikiInfobox extracted fields:`, Object.keys(fields).length, 'fields ->', fields);
+    wikiDebug(`[WIKI] getWikiInfobox extracted fields:`, Object.keys(fields).length, 'fields ->', fields);
     
     infoboxCache.set(cacheKey, fields);
     return fields;
   } catch (err) {
-    console.error(`[WIKI] getWikiInfobox error:`, err.message);
+    wikiError(`[WIKI] getWikiInfobox error:`, err.message);
     return null;
   }
 }
@@ -275,12 +282,12 @@ export async function getWikiInfobox(articleTitle) {
 function splitAndCleanGenres(rawGenre) {
   if (!rawGenre) return [];
   
-  console.log(`[WIKI] splitAndCleanGenres - raw input:`, rawGenre);
+  wikiDebug(`[WIKI] splitAndCleanGenres - raw input:`, rawGenre);
   
   // First, split on newlines to preserve individual genre entries
   const lines = rawGenre.split(/\n+/).map(l => l.trim()).filter(Boolean);
   
-  console.log(`[WIKI] splitAndCleanGenres - after newline split:`, lines);
+  wikiDebug(`[WIKI] splitAndCleanGenres - after newline split:`, lines);
   
   const allGenres = [];
   
@@ -301,7 +308,7 @@ function splitAndCleanGenres(rawGenre) {
     }
   }
   
-  console.log(`[WIKI] splitAndCleanGenres - final array:`, allGenres);
+  wikiDebug(`[WIKI] splitAndCleanGenres - final array:`, allGenres);
   
   return allGenres;
 }
@@ -432,7 +439,7 @@ function generateTitleVariants(title) {
 
 // Resolve song page with disambiguation and variant handling
 async function resolveSongPage(title, artistName) {
-  console.log(`[WIKI] resolveSongPage: "${title}" by "${artistName}"`);
+  wikiDebug(`[WIKI] resolveSongPage: "${title}" by "${artistName}"`);
   
   // Generate title variants (punctuation)
   const titleVariants = generateTitleVariants(title);
@@ -448,7 +455,7 @@ async function resolveSongPage(title, artistName) {
     ];
     
     for (const attempt of attempts) {
-      console.log(`[WIKI] resolveSongPage trying: "${attempt}"`);
+      wikiDebug(`[WIKI] resolveSongPage trying: "${attempt}"`);
       const summary = await getWikiSummary(attempt);
       
       if (summary) {
@@ -456,7 +463,7 @@ async function resolveSongPage(title, artistName) {
         
         // If it's not disambiguation or generic, we found it
         if (!isDisambiguation && !isGeneric) {
-          console.log(`[WIKI] resolveSongPage found valid page: "${attempt}"`);
+          wikiDebug(`[WIKI] resolveSongPage found valid page: "${attempt}"`);
           return { articleTitle: attempt, summary };
         }
       }
@@ -464,7 +471,7 @@ async function resolveSongPage(title, artistName) {
   }
   
   // If all variants failed, try Wikipedia search
-  console.log(`[WIKI] resolveSongPage falling back to search`);
+  wikiDebug(`[WIKI] resolveSongPage falling back to search`);
   const searchQueries = [
     `${title} (${artistName} song)`,
     `${title} ${artistName} song`,
@@ -498,7 +505,7 @@ async function resolveSongPage(title, artistName) {
           if (summary) {
             const { isDisambiguation, isGeneric } = isDisambiguationOrGeneric(summary);
             if (!isDisambiguation && !isGeneric) {
-              console.log(`[WIKI] resolveSongPage found via search: "${resultTitle}"`);
+              wikiDebug(`[WIKI] resolveSongPage found via search: "${resultTitle}"`);
               return { articleTitle: resultTitle, summary };
             }
           }
@@ -516,7 +523,7 @@ async function resolveSongPage(title, artistName) {
         if (summary) {
           const { isDisambiguation, isGeneric } = isDisambiguationOrGeneric(summary);
           if (!isDisambiguation && !isGeneric) {
-            console.log(`[WIKI] resolveSongPage found via search (fallback): "${resultTitle}"`);
+            wikiDebug(`[WIKI] resolveSongPage found via search (fallback): "${resultTitle}"`);
             return { articleTitle: resultTitle, summary };
           }
         }
@@ -524,13 +531,13 @@ async function resolveSongPage(title, artistName) {
     }
   }
   
-  console.log(`[WIKI] resolveSongPage failed to resolve page`);
+  wikiDebug(`[WIKI] resolveSongPage failed to resolve page`);
   return null;
 }
 
 // Get artist info from Wikipedia
 export async function getArtistInfo(artistName) {
-  console.log(`[WIKI] getArtistInfo: "${artistName}"`);
+  wikiDebug(`[WIKI] getArtistInfo: "${artistName}"`);
   
   // Try exact name first
   let summary = await getWikiSummary(artistName);
@@ -607,7 +614,7 @@ export async function getArtistInfo(artistName) {
 // Get song info from Wikipedia - main entry point
 export async function getSongInfo(titleOrWikiId, artistName = null) {
   try {
-    console.log(`[WIKI] getSongInfo: titleOrWikiId="${titleOrWikiId}", artistName="${artistName}"`);
+    wikiDebug(`[WIKI] getSongInfo: titleOrWikiId="${titleOrWikiId}", artistName="${artistName}"`);
     
     let articleTitle = titleOrWikiId;
     let summary = null;
@@ -691,14 +698,14 @@ export async function getSongInfo(titleOrWikiId, artistName = null) {
       wikiUrl: summary.content_urls?.desktop?.page || `https://en.wikipedia.org/wiki/${encodeURIComponent(articleTitle)}`
     };
   } catch (err) {
-    console.error(`[WIKI] getSongInfo error:`, err);
+    wikiError(`[WIKI] getSongInfo error:`, err);
     return null;
   }
 }
 
 // Get album info from Wikipedia
 export async function getAlbumInfo(albumTitle, artistName) {
-  console.log(`[WIKI] getAlbumInfo: "${albumTitle}" by "${artistName}"`);
+  wikiDebug(`[WIKI] getAlbumInfo: "${albumTitle}" by "${artistName}"`);
   
   // Try "<Album> (<Artist> album)" format first
   let articleTitle = artistName ? `${albumTitle} (${artistName} album)` : albumTitle;
@@ -787,3 +794,4 @@ export async function getAlbumInfo(albumTitle, artistName) {
 
 // Legacy export for backward compatibility
 export { normalizeGenres as normalizeInfoboxGenres };
+

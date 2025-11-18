@@ -8,4 +8,4 @@ const dir = path.dirname(cfg.dbPath);
 if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
 export const db = new Database(cfg.dbPath);
-logger.info("DB opened at", cfg.dbPath);
+logger.info("DB opened", { path: cfg.dbPath, dialect: "better-sqlite3" });

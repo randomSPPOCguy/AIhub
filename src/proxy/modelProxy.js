@@ -5,6 +5,7 @@ import fetch from 'node-fetch';
 import { cfg } from '../config.js';
 import { readModelCatalog } from '../services/modelCatalog.js';
 import { validateApiKey } from '../services/apiKeys.js';
+import { logger } from '../utils/logger.js';
 
 const router = express.Router();
 const modelsDir = cfg.modelDownloadsDir;
@@ -92,6 +93,13 @@ router.post('/models/download', async (req, res) => {
   const jobId = `${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
   jobs[jobId] = { id: item.id, status: 'started', downloaded: 0, size: null, path: destFile, name: item.name };
 
+  logger.info("Model download started", {
+    jobId,
+    modelId: item.id,
+    name: item.name,
+    url: url.substring(0, 100) // Truncate long URLs
+  });
+
   // Start background download
   (async () => {
     try {
@@ -105,11 +113,25 @@ router.post('/models/download', async (req, res) => {
       // Check HTTP status
       if (!resp.ok) {
         const errorText = await resp.text().catch(() => 'Unknown error');
+        logger.error("Model download HTTP error", {
+          jobId,
+          modelId: item.id,
+          status: resp.status,
+          statusText: resp.statusText
+        });
         throw new Error(`HTTP ${resp.status}: ${resp.statusText}. Response: ${errorText.slice(0, 200)}`);
       }
 
       const size = resp.headers.get('content-length');
-      if (size) jobs[jobId].size = parseInt(size, 10);
+      if (size) {
+        jobs[jobId].size = parseInt(size, 10);
+        const sizeGb = (parseInt(size, 10) / (1024 * 1024 * 1024)).toFixed(2);
+        logger.info("Model download size detected", {
+          jobId,
+          modelId: item.id,
+          sizeGb: `${sizeGb} GB`
+        });
+      }
 
       // Validate expected size if available
       if (item.size && size) {
@@ -144,6 +166,14 @@ router.post('/models/download', async (req, res) => {
       }
 
       jobs[jobId].status = 'finished';
+      logger.info("Model download completed", {
+        jobId,
+        modelId: item.id,
+        name: item.name,
+        path: destFile,
+        sizeBytes: jobs[jobId].size || null
+      });
+
       // Attempt to notify Python AI Hub that the model download finished so it can register/validate
       (async () => {
         try {
@@ -160,13 +190,29 @@ router.post('/models/download', async (req, res) => {
           });
           const regJson = await regRes.json().catch(() => ({}));
           jobs[jobId].registered = regJson;
+          logger.info("Model registered with Python AI Hub", {
+            jobId,
+            modelId: item.id,
+            registered: !!regJson
+          });
         } catch (e) {
           jobs[jobId].registered = { error: String(e) };
+          logger.warn("Failed to register model with Python AI Hub", {
+            jobId,
+            modelId: item.id,
+            error: String(e)
+          });
         }
       })();
     } catch (err) {
       jobs[jobId].status = 'error';
       jobs[jobId].error = String(err);
+      logger.error("Model download failed", {
+        jobId,
+        modelId: item.id,
+        name: item.name,
+        error: err?.message || String(err)
+      });
     }
   })();
 

@@ -1,0 +1,46 @@
+{
+  "type": "track",
+  "title": "Karma Police",
+  "artist": "Radiohead",
+  "mbid": "98c12359-ca1f-48b7-820e-a57f3cbf0a97",
+  "ids": {
+    "musicbrainz": "98c12359-ca1f-48b7-820e-a57f3cbf0a97"
+  },
+  "urls": {},
+  "context": "track",
+  "facts": [
+    "Duration: 4:40",
+    "Appears on: 2000‐07‐04: Großer Sendesaal des SFB, Berlin, Germany, 2000-07-04: Berlin, Germany, 2000‐07‐04: Großer Sendesaal des SFB, Berlin, Germany"
+  ],
+  "sources": [
+    {
+      "provider": "musicbrainz",
+      "url": "https://musicbrainz.org/recording/98c12359-ca1f-48b7-820e-a57f3cbf0a97",
+      "sections": [
+        "recording_info"
+      ]
+    }
+  ],
+  "metadata": {
+    "length": "4:40",
+    "length_ms": 280320,
+    "isrc": null,
+    "releases": [
+      {
+        "title": "2000‐07‐04: Großer Sendesaal des SFB, Berlin, Germany",
+        "date": "",
+        "mbid": "6b312913-defc-4b14-954b-123345146ea7"
+      },
+      {
+        "title": "2000-07-04: Berlin, Germany",
+        "date": "",
+        "mbid": "7276698b-50a4-4be0-b2c9-c2651ce122cd"
+      },
+      {
+        "title": "2000‐07‐04: Großer Sendesaal des SFB, Berlin, Germany",
+        "date": "",
+        "mbid": "6e9db3e3-230b-41b8-a5bd-d2f86ed31b51"
+      }
+    ]
+  }
+}

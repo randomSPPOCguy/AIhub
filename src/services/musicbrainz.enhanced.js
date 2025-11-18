@@ -1,8 +1,23 @@
 // src/services/musicbrainz.enhanced.js
 // Enhanced MusicBrainz data extraction - detailed recording, release, and artist info
 
+import { logger } from "../utils/logger.js";
+import {
+  mbSearchRecording,
+  mbSearchArtistByName
+} from "./musicbrainz.js";
+
 // Re-import the functions we need from base musicbrainz.js
-const MB_UA = process.env.MB_UA ?? `${process.env.MB_UA_APP || "AIHubBot"}/${process.env.MB_UA_VERSION || "1.1"} (${process.env.MB_UA_CONTACT || "you@example.com"})`;
+const MB_UA =
+  process.env.MB_UA ??
+  `${process.env.MB_UA_APP || "AIHubBot"}/${process.env.MB_UA_VERSION || "1.1"} (${
+    process.env.MB_UA_CONTACT || "you@example.com"
+  })`;
+
+const mbInfo = (message, meta) => logger.info(`[MB_ENHANCED] ${message}`, meta);
+const mbWarn = (message, meta) => logger.warn(`[MB_ENHANCED] ${message}`, meta);
+const mbError = (message, meta) => logger.error(`[MB_ENHANCED] ${message}`, meta);
+const mbDebug = (message, meta) => logger.debug(`[MB_ENHANCED] ${message}`, meta);
 
 function mbHeaders() {
   return { "User-Agent": MB_UA, Accept: "application/json" };
@@ -20,12 +35,6 @@ async function mbGet(url) {
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
-
-// Import search functions from base service
-import { 
-  mbSearchRecording,
-  mbSearchArtistByName
-} from './musicbrainz.js';
 
 /**
  * Get detailed recording (track) information
@@ -74,7 +83,10 @@ export async function getRecordingDetails(recordingMbid) {
       wikiLinks: extractWikiLinks(data.relations || [])
     };
   } catch (error) {
-    console.error(`[MB_ENHANCED] Error fetching recording ${recordingMbid}: ${error.message}`);
+    mbError("Error fetching recording details", {
+      recordingMbid,
+      error: error?.message || String(error)
+    });
     return null;
   }
 }
@@ -135,7 +147,10 @@ export async function getReleaseGroupDetails(releaseGroupMbid) {
       wikiLinks: extractWikiLinks(data.relations || [])
     };
   } catch (error) {
-    console.error(`[MB_ENHANCED] Error fetching release-group ${releaseGroupMbid}: ${error.message}`);
+    mbError("Error fetching release group", {
+      releaseGroupMbid,
+      error: error?.message || String(error)
+    });
     return null;
   }
 }
@@ -196,7 +211,10 @@ export async function getArtistDetails(artistMbid) {
       wikiLinks: extractWikiLinks(data.relations || [])
     };
   } catch (error) {
-    console.error(`[MB_ENHANCED] Error fetching artist ${artistMbid}: ${error.message}`);
+    mbError("Error fetching artist", {
+      artistMbid,
+      error: error?.message || String(error)
+    });
     return null;
   }
 }
@@ -415,7 +433,7 @@ function findBestRelease(releases, trackTitle) {
  */
 export async function getMusicBrainzDataEnhanced(title, artist) {
   try {
-    console.log(`[MB_ENHANCED] Fetching data for: "${title}" by ${artist}`);
+    mbInfo("Fetching enhanced MusicBrainz data", { title, artist });
 
     // 1. Search for recording - limit to top 5 results for faster processing
     const q = encodeURIComponent(`recording:"${title}" AND artist:"${artist}"`);
@@ -424,7 +442,7 @@ export async function getMusicBrainzDataEnhanced(title, artist) {
     const recordings = (searchData.recordings || []).sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
     
     if (recordings.length === 0) {
-      console.log(`[MB_ENHANCED] No recording found`);
+      mbWarn("No recording found during enhancement", { title, artist });
       return null;
     }
 
@@ -471,7 +489,7 @@ export async function getMusicBrainzDataEnhanced(title, artist) {
       }
     }
 
-    console.log(`[MB_ENHANCED] Data fetched successfully`);
+    mbInfo("Enhanced MusicBrainz data fetched", { title, artist });
 
     return {
       recording: recordingDetails,
@@ -487,7 +505,11 @@ export async function getMusicBrainzDataEnhanced(title, artist) {
     };
 
   } catch (error) {
-    console.error(`[MB_ENHANCED] Error: ${error.message}`);
+    mbError("Enhanced MusicBrainz data fetch failed", {
+      error: error?.message || String(error),
+      title,
+      artist
+    });
     return null;
   }
 }

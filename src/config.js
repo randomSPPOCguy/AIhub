@@ -31,6 +31,7 @@ const inferWs = (url) => {
 const internalBaseUrl =
   process.env.AIHUB_INTERNAL_BASE_URL || process.env.HUB_INTERNAL_BASE_URL || `http://127.0.0.1:${port}`;
 const pythonPort = parseIntWithFallback(process.env.PYTHON_AI_PORT, 8000);
+const enrichPort = parseIntWithFallback(process.env.ENRICH_PORT, 8001);
 
 export const cfg = {
   port,
@@ -64,6 +65,14 @@ export const cfg = {
     modelRoot: process.env.PYTHON_MODEL_ROOT || "./models/downloads",
     bin: process.env.PYTHON_AI_BIN || "",
     interpreter: process.env.PYTHON || "python"
+  },
+  enrich: {
+    url: process.env.ENRICH_URL || `http://localhost:${enrichPort}`,
+    token: process.env.ENRICH_TOKEN || process.env.AIHUB_SERVICE_TOKEN || "",
+    timeout: parseIntWithFallback(process.env.ENRICH_TIMEOUT_MS, 2000),
+    enabled: toBool(process.env.ENRICHMENT_ENABLED, true),
+    wikipediaEnabled: toBool(process.env.ENRICH_WIKIPEDIA_ENABLED, true),
+    musicbrainzEnabled: toBool(process.env.ENRICH_MUSICBRAINZ_ENABLED, true)
   },
   behaviorPrompt: {
     inline: process.env.BOT_BEHAVIOR_PROMPT || "",

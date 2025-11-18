@@ -1,23 +1,16 @@
 # Database Directory
 
-This directory is used to store the SQLite database files for AIhub.
+This directory will contain the SQLite database file after running the migration.
 
-## Note
+## Setup
 
-Database files are excluded from Git for security and performance reasons. When you clone this repository, you will need to:
+1. The database file `music.sqlite` will be created automatically when you run:
+   ```bash
+   npm run migrate
+   ```
 
-1. Create a new database file by running the application
-2. Or restore a backup database file if you have one
+2. The database is excluded from git via `.gitignore` to prevent committing user data.
 
-## Database Files
+## Schema
 
-The main database file that will be created here is:
-- `music.sqlite` - Contains API keys, user data, and application state
-
-## Database Structure
-
-The database contains tables for:
-- API keys
-- User profiles
-- Music information
-- Application configuration
+See `src/db/schema.sql` for the database schema definition.

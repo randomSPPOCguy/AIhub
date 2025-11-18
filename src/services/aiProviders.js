@@ -2,6 +2,7 @@ import fetch from "node-fetch";
 import fs from "node:fs";
 import path from "node:path";
 import { cfg } from "../config.js";
+import { logger } from "../utils/logger.js";
 
 function normalizeContent(content) {
   if (typeof content === "string") return content;
@@ -279,18 +280,46 @@ async function callLocal(model, payload) {
 }
 
 export async function callProvider(model, payload) {
-  switch (model.provider) {
-    case "openai":
-      return callOpenAI(model, payload);
-    case "anthropic":
-      return callAnthropic(model, payload);
-    case "gemini":
-      return callGemini(model, payload);
-    case "huggingface":
-      return callHuggingFace(model, payload);
-    case "local":
-      return callLocal(model, payload);
-    default:
-      throw new Error(`Unsupported provider ${model.provider}`);
+  const started = Date.now();
+  logger.info("Model request dispatched", {
+    provider: model.provider,
+    modelId: model.id,
+    remoteModel: model.remoteModel || null
+  });
+  try {
+    let result;
+    switch (model.provider) {
+      case "openai":
+        result = await callOpenAI(model, payload);
+        break;
+      case "anthropic":
+        result = await callAnthropic(model, payload);
+        break;
+      case "gemini":
+        result = await callGemini(model, payload);
+        break;
+      case "huggingface":
+        result = await callHuggingFace(model, payload);
+        break;
+      case "local":
+        result = await callLocal(model, payload);
+        break;
+      default:
+        throw new Error(`Unsupported provider ${model.provider}`);
+    }
+    logger.info("Model response received", {
+      provider: model.provider,
+      modelId: model.id,
+      durationMs: Date.now() - started
+    });
+    return result;
+  } catch (err) {
+    logger.error("Model provider failed", {
+      provider: model.provider,
+      modelId: model.id,
+      durationMs: Date.now() - started,
+      error: err?.message || String(err)
+    });
+    throw err;
   }
 }

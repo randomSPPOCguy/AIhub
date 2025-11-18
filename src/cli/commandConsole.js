@@ -11,6 +11,9 @@ import {
   buildLocalModelsPayload
 } from "../services/modelSummary.js";
 import { getActiveModel, setActiveModel } from "../services/modelRegistry.js";
+import { callProvider } from "../services/aiProviders.js";
+import { enrichMusicQuery, isMusicQuery } from "../services/musicKnowledge.js";
+import { callEnrichment } from "../services/enrichmentClient.js";
 import { printUnifiedModelList, getModelByIndex } from "./unifiedModelList.js";
 import {
   MenuState,
@@ -27,6 +30,17 @@ import {
   detectTooling,
   getToolingInstructions
 } from "../services/onboardingWizard.js";
+import {
+  showTemperatureSettings,
+  configureTemperature,
+  quickSetTemperature
+} from "./temperatureConfig.js";
+import {
+  showModelParams,
+  configureModelParams,
+  quickSetPreset
+} from "./modelTuning.js";
+import { PageNavigator } from "./pageNavigation.js";
 
 const ansi = {
   reset: "\x1b[0m",
@@ -45,8 +59,16 @@ const COMMAND_ENTRIES = [
   { category: "Models", usage: "/model select <#>", description: "Activate a model by number" },
   { category: "Models", usage: "/model download <#>", description: "Download a local model" },
   { category: "Models", usage: "/model active", description: "Show currently active model" },
+  { category: "Models", usage: "/model set <id>", description: "⚡ Quick switch to model by ID", highlight: true },
+  { category: "Services", usage: "/status", description: "📊 Show all service status", highlight: true },
+  { category: "Services", usage: "/logs [service]", description: "📋 View service logs (python/enrichment/all)" },
+  { category: "Services", usage: "/restart <service>", description: "🔄 Restart a service (python/enrichment)" },
   { category: "Setup", usage: "/keygen [label]", description: "🔑 Generate API key", highlight: true },
   { category: "Setup", usage: "/py", description: "Start Python ONNX server" },
+  { category: "Setup", usage: "/tune", description: "🎛️  Fine-tune model parameters", highlight: true },
+  { category: "Setup", usage: "/temp [value]", description: "🌡️  Configure AI temperature (legacy)", highlight: false },
+  { category: "Setup", usage: "/setup", description: "Run first-time setup wizard" },
+  { category: "Setup", usage: "/check-cuda", description: "🔍 Check CUDA/cuDNN installation" },
   { category: "Info", usage: "/help", description: "Show this help" },
   { category: "Info", usage: "/clear", description: "Clear screen" },
   // Legacy commands (still supported)
@@ -65,6 +87,8 @@ let started = false;
 const lastCatalogSelections = new Map();
 const menuState = new MenuState();
 let modelCache = new Map(); // Cache for model selections in current view
+const pageNav = new PageNavigator(); // New page-based navigation
+const usePageNav = process.env.AIHUB_AUTO_START === "true"; // Use page nav in auto-start mode
 function formatStatus(value) {
   return value ? color("Detected", ansi.green) : color("Missing", ansi.red);
 }
@@ -318,7 +342,7 @@ function logLocal() {
         if (nvidiaGpu) {
           parts.push(`CUDA-ready for ${nvidiaGpu.name}`);
         } else {
-          parts.push("Needs NVIDIA CUDA runtime");
+          parts.push("Needs GPU CUDA runtime");
         }
       }
       if (entry.format) {
@@ -511,21 +535,168 @@ function logToolingHelp() {
   console.log("");
 }
 
-function handleLine(input, rl) {
+async function showServiceStatus() {
+  console.log("");
+  console.log(color("═══ Service Status ═══", `${ansi.bold}${ansi.cyan}`));
+
+  // Check ports
+  const checkPort = async (port) => {
+    try {
+      const res = await fetch(`http://localhost:${port}/health`, {
+        signal: AbortSignal.timeout(2000)
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  };
+
+  const [nodeOk, pythonOk, enrichOk] = await Promise.all([
+    checkPort(cfg.port || 3000),
+    checkPort(8000),
+    checkPort(8001)
+  ]);
+
+  const statusIcon = (ok) => ok ? color("✓", ansi.green) : color("✗", ansi.red);
+  const statusText = (ok) => ok ? color("Running", ansi.green) : color("Stopped", ansi.red);
+
+  console.log(`  Node.js AIhub (${cfg.port || 3000}):    ${statusIcon(nodeOk)} ${statusText(nodeOk)}`);
+  console.log(`  Python AI (8000):        ${statusIcon(pythonOk)} ${statusText(pythonOk)}`);
+  console.log(`  Enrichment (8001):       ${statusIcon(enrichOk)} ${statusText(enrichOk)}`);
+
+  const active = getActiveModel();
+  console.log("");
+  console.log(color("Active Model:", ansi.bold));
+  if (active) {
+    console.log(`  ${color(active.id, ansi.green)} (${active.provider})`);
+  } else {
+    console.log(`  ${color("None selected", ansi.yellow)}`);
+    console.log(`  ${color("Use /model to select a model", ansi.gray)}`);
+  }
+  console.log("");
+}
+
+async function showServiceLogs(service = "all") {
+  console.log("");
+  console.log(color(`═══ Service Logs: ${service} ═══`, `${ansi.bold}${ansi.cyan}`));
+  console.log(color("Note: Logs are only available when running in unified mode (start-unified.ps1)", ansi.yellow));
+  console.log(color("In standalone mode, check individual terminal windows for logs.", ansi.gray));
+  console.log("");
+}
+
+// CLI chat function for interactive AI conversation with enrichment
+async function sendCLIChat(message) {
+  const active = getActiveModel();
+  if (!active) {
+    console.log(color("[CHAT] No model selected. Use /model to select one first.", ansi.yellow));
+    return;
+  }
+
+  console.log(color(`[CHAT] You: ${message}`, ansi.dim));
+
+  try {
+    // Check if we need enrichment
+    let enrichedContext = "";
+    let enrichmentUsed = false;
+
+    // Try enrichment service for general queries
+    try {
+      console.log(color("[ENRICH] Checking for enrichment data...", ansi.cyan));
+      const enrichResult = await callEnrichment({ text: message });
+
+      if (enrichResult && (enrichResult.facts?.length > 0 || enrichResult.subjects?.length > 0)) {
+        enrichmentUsed = true;
+
+        // Build enriched context
+        let contextParts = ["\n\nEnriched Context from External Sources:"];
+
+        // Add subjects
+        if (enrichResult.subjects && enrichResult.subjects.length > 0) {
+          contextParts.push("\nSubjects Found:");
+          enrichResult.subjects.forEach(subject => {
+            contextParts.push(`- ${subject.name} (${subject.type})`);
+          });
+        }
+
+        // Add facts
+        if (enrichResult.facts && enrichResult.facts.length > 0) {
+          contextParts.push("\nFactual Information:");
+          enrichResult.facts.forEach(fact => {
+            contextParts.push(`- ${fact}`);
+          });
+        }
+
+        enrichedContext = contextParts.join("\n");
+
+        console.log(color(
+          `[ENRICH] ✓ Found ${enrichResult.subjects?.length || 0} subjects, ${enrichResult.facts?.length || 0} facts (confidence: ${enrichResult.meta?.confidence || 'unknown'})`,
+          ansi.green
+        ));
+      } else {
+        console.log(color("[ENRICH] No enrichment data found for this query", ansi.dim));
+      }
+    } catch (enrichErr) {
+      console.log(color(`[ENRICH] Service unavailable: ${enrichErr.message}`, ansi.dim));
+    }
+
+    // Build the message with enrichment if available
+    const finalMessage = enrichmentUsed
+      ? message + enrichedContext + "\n\nAnswer the user's question using the enriched context above."
+      : message;
+
+    console.log(color(`[CHAT] ${active.id} is thinking...`, ansi.cyan));
+
+    const payload = {
+      messages: [{ role: "user", content: finalMessage }],
+      temperature: 0.7,
+      maxTokens: 2000,
+      stream: false
+    };
+
+    const result = await callProvider(active, payload);
+
+    if (result && result.text) {
+      console.log("");
+      console.log(color(`[CHAT] ${active.id}:`, ansi.magenta));
+      console.log(color(result.text, ansi.reset));
+      console.log("");
+
+      if (enrichmentUsed) {
+        console.log(color("[INFO] Response included enriched data from external sources", ansi.dim));
+      }
+    } else {
+      console.log(color("[CHAT] No response received (empty result)", ansi.red));
+      console.log(color(`[DEBUG] Result: ${JSON.stringify(result)}`, ansi.gray));
+    }
+  } catch (error) {
+    console.log(color(`[CHAT] Error: ${error.message}`, ansi.red));
+    if (error.stack) {
+      console.log(color(`[DEBUG] ${error.stack}`, ansi.gray));
+    }
+  }
+}
+
+async function handleLine(input, rl) {
   const line = input.trim();
   if (!line) {
-    rl.setPrompt(menuState.getPrompt());
+    rl.setPrompt(usePageNav ? pageNav.getPrompt() : menuState.getPrompt());
     rl.prompt();
     return;
   }
 
   const [command, ...args] = line.split(/\s+/);
-  const finish = () => {
-    rl.setPrompt(menuState.getPrompt());
+  const finish = async () => {
+    rl.setPrompt(usePageNav ? pageNav.getPrompt() : menuState.getPrompt());
     rl.prompt();
   };
 
-  // Route based on current context
+  // Use page navigation if in auto-start mode
+  if (usePageNav) {
+    await handlePageNavCommands(command, args, rl, finish);
+    return;
+  }
+
+  // Route based on current context (legacy menu system)
   if (menuState.context === "root") {
     handleRootCommands(command, args, rl, finish);
   } else if (menuState.context === "model") {
@@ -536,6 +707,215 @@ function handleLine(input, rl) {
     handleDownloadCommands(command, args, rl, finish);
   } else {
     finish();
+  }
+}
+
+// Handle page navigation commands
+async function handlePageNavCommands(command, args, rl, finish) {
+  const cmd = command.toLowerCase();
+
+  // Refresh command (works on any page, but especially useful for logs)
+  if (cmd === "refresh") {
+    await pageNav.renderCurrent();
+    finish();
+    return;
+  }
+
+  // Page navigation
+  if (pageNav.pages[cmd]) {
+    pageNav.navigateTo(cmd);
+    await pageNav.renderCurrent();
+    finish();
+    return;
+  }
+
+  // Special commands
+  switch (cmd) {
+    case "back":
+    case "..":
+      if (pageNav.back()) {
+        await pageNav.renderCurrent();
+      }
+      finish();
+      return;
+
+    case "clear":
+    case "cls":
+      console.clear();
+      await pageNav.renderCurrent();
+      finish();
+      return;
+
+    case "exit":
+    case "quit":
+      console.log(color("Stopping AIhub... Press Ctrl+C to exit", ansi.yellow));
+      finish();
+      return;
+
+    case "set":
+      // Quick model switching
+      if (!args.length) {
+        console.log(color("Usage: set <model-id>", ansi.yellow));
+        finish();
+        return;
+      }
+      try {
+        const updated = setActiveModel(args[0]);
+        console.log(color(`✓ Model switched to: ${updated.id} (${updated.provider})`, ansi.green));
+        await pageNav.renderCurrent();
+      } catch (err) {
+        console.log(color(`Error: ${err.message}`, ansi.red));
+      }
+      finish();
+      return;
+
+    case "tune":
+      configureModelParams()
+        .then(async () => {
+          await pageNav.renderCurrent();
+          finish();
+        })
+        .catch(err => {
+          console.log(color(`Model tuning failed: ${err.message}`, ansi.red));
+          finish();
+        });
+      return;
+
+    case "temp":
+      if (args.length === 0) {
+        configureTemperature()
+          .then(async () => {
+            await pageNav.renderCurrent();
+            finish();
+          })
+          .catch(err => {
+            console.log(color(`Temperature config failed: ${err.message}`, ansi.red));
+            finish();
+          });
+      } else {
+        quickSetTemperature(args[0])
+          .then(async () => {
+            await pageNav.renderCurrent();
+            finish();
+          })
+          .catch(err => {
+            console.log(color(`Failed to set temperature: ${err.message}`, ansi.red));
+            finish();
+          });
+      }
+      return;
+
+    case "setup":
+      import("./firstTimeSetup.js")
+        .then(({ runFirstTimeSetup }) => runFirstTimeSetup())
+        .then(async () => {
+          await pageNav.renderCurrent();
+          finish();
+        })
+        .catch(err => {
+          console.log(color(`Setup failed: ${err.message}`, ansi.red));
+          finish();
+        });
+      return;
+
+    case "cuda":
+      import("node:child_process")
+        .then(({ spawn: spawnCheck }) => {
+          const checkProcess = spawnCheck("node", ["scripts/check-cuda.js"], { stdio: "inherit" });
+          checkProcess.on("close", async () => {
+            await pageNav.renderCurrent();
+            finish();
+          });
+        })
+        .catch(err => {
+          console.log(color(`CUDA check failed: ${err.message}`, ansi.red));
+          finish();
+        });
+      return;
+
+    case "keygen":
+      runKeygen(args.join(" "))
+        .then(async () => {
+          await pageNav.renderCurrent();
+          finish();
+        })
+        .catch(err => {
+          console.log(color(`Keygen failed: ${err.message}`, ansi.red));
+          finish();
+        });
+      return;
+
+    case "download":
+      pageNav.navigateTo("models");
+      await pageNav.renderCurrent();
+      console.log(color("\nNote: Download functionality coming soon. Use /model download in classic mode.", ansi.yellow));
+      finish();
+      return;
+
+    case "/model":
+    case "model":
+      // Navigate to models page or handle quick commands
+      if (args.length === 0) {
+        pageNav.navigateTo("models");
+        await pageNav.renderCurrent();
+      } else if (args[0] === "set" && args[1]) {
+        try {
+          const updated = setActiveModel(args[1]);
+          console.log(color(`✓ Active model switched to: ${updated.id} (${updated.provider})`, ansi.green));
+          await pageNav.renderCurrent();
+        } catch (err) {
+          console.log(color(`Error: ${err.message}`, ansi.red));
+        }
+      } else {
+        pageNav.navigateTo("models");
+        await pageNav.renderCurrent();
+      }
+      finish();
+      return;
+
+    case "/status":
+    case "status":
+      pageNav.navigateTo("status");
+      await pageNav.renderCurrent();
+      finish();
+      return;
+
+    case "/help":
+    case "help":
+    case "?":
+      pageNav.navigateTo("help");
+      await pageNav.renderCurrent();
+      finish();
+      return;
+
+    default:
+      // On logs page, treat non-commands as chat messages
+      if (pageNav.currentPage === "logs") {
+        // Check if it starts with / - if so, it's an unknown command, not chat
+        if (command.startsWith("/")) {
+          console.log(color(`Unknown command: ${command}`, ansi.red));
+          console.log(color("Type 'help' to see all commands", ansi.gray));
+          finish();
+          return;
+        }
+
+        // Otherwise, treat as chat
+        const fullMessage = [command, ...args].join(" ");
+        try {
+          await sendCLIChat(fullMessage);
+          // Don't re-render, let logs accumulate
+        } catch (err) {
+          console.log(color(`Chat error: ${err.message}`, ansi.red));
+        }
+        finish();
+        return;
+      }
+
+      // On other pages, show unknown command error
+      console.log(color(`Unknown command: ${command}`, ansi.red));
+      console.log(color("Type 'help' to see all commands, or a page name to navigate", ansi.gray));
+      finish();
+      return;
   }
 }
 
@@ -550,8 +930,18 @@ function handleRootCommands(command, args, rl, finish) {
 
     case "/model":
     case "model":
-      menuState.context = "model";
-      showModelMenu();
+      // Quick set if args provided
+      if (args.length > 0 && args[0] === "set" && args[1]) {
+        try {
+          const updated = setActiveModel(args[1]);
+          console.log(color(`✓ Active model switched to: ${updated.id} (${updated.provider})`, ansi.green));
+        } catch (err) {
+          console.log(color(`Error: ${err.message}`, ansi.red));
+        }
+      } else {
+        menuState.context = "model";
+        showModelMenu();
+      }
       break;
 
     case "/keygen":
@@ -574,6 +964,125 @@ function handleRootCommands(command, args, rl, finish) {
     case "clear":
       console.clear();
       break;
+
+    case "/status":
+    case "status":
+      showServiceStatus()
+        .then(() => finish())
+        .catch(err => {
+          console.log(color(`[CMD] Status check failed: ${err.message}`, ansi.red));
+          finish();
+        });
+      return;
+
+    case "/logs":
+    case "logs":
+      showServiceLogs(args[0] || "all")
+        .then(() => finish())
+        .catch(err => {
+          console.log(color(`[CMD] Log viewing failed: ${err.message}`, ansi.red));
+          finish();
+        });
+      return;
+
+    case "/tune":
+    case "tune":
+      if (args.length === 0) {
+        configureModelParams()
+          .then(() => finish())
+          .catch(err => {
+            console.log(color(`[CMD] Model tuning failed: ${err.message}`, ansi.red));
+            finish();
+          });
+        return;
+      } else if (args[0] === "show") {
+        showModelParams();
+        break;
+      } else {
+        // Quick preset
+        const success = quickSetPreset(args[0]);
+        if (success) {
+          showModelParams();
+        }
+        break;
+      }
+
+    case "/temp":
+    case "temp":
+      if (args.length === 0) {
+        configureTemperature()
+          .then(() => finish())
+          .catch(err => {
+            console.log(color(`[CMD] Temperature config failed: ${err.message}`, ansi.red));
+            finish();
+          });
+        return;
+      } else {
+        quickSetTemperature(args[0])
+          .then(() => finish())
+          .catch(err => {
+            console.log(color(`[CMD] Failed to set temperature: ${err.message}`, ansi.red));
+            finish();
+          });
+        return;
+      }
+
+    case "/setup":
+    case "setup":
+      import("./firstTimeSetup.js")
+        .then(({ runFirstTimeSetup }) => {
+          return runFirstTimeSetup();
+        })
+        .then(() => finish())
+        .catch(err => {
+          console.log(color(`[CMD] Setup failed: ${err.message}`, ansi.red));
+          finish();
+        });
+      return;
+
+    case "/check-cuda":
+    case "check-cuda":
+    case "cuda":
+      import("node:child_process")
+        .then(({ spawn: spawnCheck }) => {
+          const checkProcess = spawnCheck("node", ["scripts/check-cuda.js"], {
+            stdio: "inherit"
+          });
+          checkProcess.on("close", () => finish());
+        })
+        .catch(err => {
+          console.log(color(`[CMD] CUDA check failed: ${err.message}`, ansi.red));
+          finish();
+        });
+      return;
+
+    case "/frank:enrich":
+    case "/enrich":
+    case "frank:enrich":
+    case "enrich":
+      if (args.length === 0) {
+        console.log(color("[CMD] Usage: /enrich --text \"<text>\" [--room <roomId>] [--providers <list>]", ansi.yellow));
+        finish();
+        return;
+      }
+      import("node:child_process")
+        .then(({ spawn: spawnEnrich }) => {
+          const enrichArgs = ["src/cli/frankEnrich.js", ...args];
+          const enrichProcess = spawnEnrich("node", enrichArgs, {
+            stdio: "inherit"
+          });
+          enrichProcess.on("close", (code) => {
+            if (code !== 0) {
+              console.log(color(`[CMD] Enrichment command exited with code ${code}`, ansi.red));
+            }
+            finish();
+          });
+        })
+        .catch(err => {
+          console.log(color(`[CMD] Enrichment failed: ${err.message}`, ansi.red));
+          finish();
+        });
+      return;
 
     // Legacy commands (backward compatibility)
     case "local":
@@ -750,6 +1259,91 @@ function handleDownloadCommands(command, args, rl, finish) {
   finish();
 }
 
+// Initialize global log capture
+function initializeLogCapture() {
+  if (typeof global.aiHubLogs === "undefined") {
+    global.aiHubLogs = [];
+  }
+
+  if (typeof global.capturingLogs === "undefined") {
+    global.capturingLogs = true; // Flag to control capture
+  }
+
+  // Capture console output
+  const originalLog = console.log;
+  const originalError = console.error;
+  const maxLogLines = 1000;
+
+  // Store original functions globally for page rendering
+  global.originalLog = originalLog;
+  global.originalError = originalError;
+
+  console.log = function(...args) {
+    const message = args.join(" ");
+
+    // Only capture if capturing is enabled (not during page rendering)
+    if (global.capturingLogs) {
+      const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
+
+      // Determine source
+      let source = "node";
+      if (message.includes("[PY]") || message.includes("Python") || message.includes("ONNX")) {
+        source = "python";
+      } else if (message.includes("[ENRICH]") || message.includes("Enrichment")) {
+        source = "enrich";
+      } else if (message.includes("[CHAT]") || message.includes("Chat") || message.includes("conversation")) {
+        source = "chat";
+      }
+
+      // Skip page navigation output and ASCII banners
+      if (!message.includes("===") && !message.includes("Navigation:") &&
+          !message.includes("Commands:") && !message.includes("Services:") &&
+          !message.includes("┌") && !message.includes("└") && !message.includes("─") &&
+          !message.includes("│") && !message.includes("UNIFIED LOGS TERMINAL")) {
+        global.aiHubLogs.push({
+          timestamp,
+          source,
+          message,
+          level: "info"
+        });
+
+        if (global.aiHubLogs.length > maxLogLines) {
+          global.aiHubLogs.shift();
+        }
+      }
+    }
+
+    // Always output to console
+    return originalLog.apply(console, args);
+  };
+
+  console.error = function(...args) {
+    const message = args.join(" ");
+
+    if (global.capturingLogs) {
+      const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
+
+      let source = "node";
+      if (message.includes("[PY]")) source = "python";
+      else if (message.includes("[ENRICH]")) source = "enrich";
+      else if (message.includes("[CHAT]")) source = "chat";
+
+      global.aiHubLogs.push({
+        timestamp,
+        source,
+        message: `ERROR: ${message}`,
+        level: "error"
+      });
+
+      if (global.aiHubLogs.length > maxLogLines) {
+        global.aiHubLogs.shift();
+      }
+    }
+
+    return originalError.apply(console, args);
+  };
+}
+
 export function startCommandConsole() {
   if (started || !process.stdin.isTTY) {
     if (!process.stdin.isTTY) {
@@ -759,21 +1353,41 @@ export function startCommandConsole() {
     return;
   }
   started = true;
+
+  // Initialize log capture in page navigation mode
+  if (usePageNav) {
+    initializeLogCapture();
+  }
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
-    prompt: "hub> "
+    prompt: usePageNav ? pageNav.getPrompt() : "hub> "
   });
+
   const wizard = needsOnboarding()
     ? runOnboardingWizard(rl).catch(err => console.log(`[SETUP] ${err.message}`))
     : Promise.resolve();
-  wizard.then(() => {
+
+  wizard.then(async () => {
     warnLocalRuntimeTooling();
-    showMainMenu(); // Show the main menu on startup
-    rl.setPrompt(menuState.getPrompt());
+
+    if (usePageNav) {
+      // Clear initial startup output and show clean home page
+      console.clear();
+      await pageNav.renderCurrent();
+      rl.setPrompt(pageNav.getPrompt());
+    } else {
+      // Show traditional menu
+      showMainMenu();
+      rl.setPrompt(menuState.getPrompt());
+    }
+
     rl.prompt();
   });
-  rl.on("line", line => handleLine(line, rl));
+
+  rl.on("line", async (line) => {
+    await handleLine(line, rl);
+  });
   rl.on("close", () => {
     console.log("[CMD] Console input closed. Hub still running.");
   });

@@ -20,13 +20,26 @@ import chatProxy from "./proxy/chatProxy.js";
 import { getHardwareSnapshot } from "./utils/hardwareInfo.js";
 import { startCommandConsole } from "./cli/commandConsole.js";
 import { listDownloadedLocalArtifacts, getActiveModel } from "./services/modelRegistry.js";
+import { logger } from "./utils/logger.js";
 
 const app = express();
 const server = http.createServer(app);
 
+logger.info("=== AIhub Experimental - starting up ===", {
+  version: "1.2.0",
+  pid: process.pid
+});
+
 app.use(express.json());
 app.use(cors({ origin: cfg.allowOrigin }));
-app.use(morgan("dev"));
+const requestLogFormat = ":method :url :status :res[content-length] - :response-time ms";
+app.use(
+  morgan(requestLogFormat, {
+    stream: {
+      write: (message) => logger.info("[HTTP]", message.trim())
+    }
+  })
+);
 app.use("/api/enrich", enrichRouter);
 app.use("/api/enrich", enrichArtistFull);
 app.use("/api/enrich", enrichTrack);
@@ -55,44 +68,99 @@ setupRoomWebSocket(server);
 function logHardwareBanner() {
   const hardware = getHardwareSnapshot();
   const cpu = hardware.cpu;
-  console.log(
-    `[SYS] CPU detected: ${cpu?.model || "Unknown"} | logical cores: ${
-      cpu?.logicalCores ?? "n/a"
-    }`
-  );
+  logger.info("Hardware ready", {
+    cpuModel: cpu?.model || "unknown",
+    logicalCores: cpu?.logicalCores ?? "n/a"
+  });
   const gpus = hardware.gpu || [];
   if (!gpus.length) {
-    console.log("[SYS] GPU detected: none");
+    logger.info("GPU detected: none");
   } else {
     gpus.forEach((gpu, idx) => {
       const mem =
         typeof gpu.memoryBytes === "number"
           ? `${Math.round((gpu.memoryBytes / 1024 / 1024 / 1024) * 10) / 10} GB`
           : "memory n/a";
-      console.log(`[SYS] GPU ${idx + 1}: ${gpu.name} (${mem})`);
+      logger.info("GPU detected", {
+        index: idx + 1,
+        name: gpu.name,
+        memory: mem
+      });
     });
   }
-  console.log("[SYS] Type '/help' to see the built-in command console options.");
+  logger.info("Command console tip: type '/help' to see available commands");
+}
+
+async function reportEnrichmentHealth() {
+  if (!cfg.enrich.enabled) {
+    logger.warn("Enrichment service disabled via configuration");
+    return;
+  }
+  const healthUrl = `${cfg.enrich.url.replace(/\/$/, "")}/health`;
+  const controller = new AbortController();
+  const timeoutMs = Math.min(cfg.enrich.timeout, 2000);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(healthUrl, { signal: controller.signal });
+    clearTimeout(timeout);
+    if (response.ok) {
+      logger.info("Enrichment service: OK", {
+        url: healthUrl,
+        status: response.status
+      });
+    } else {
+      logger.warn("Enrichment service: FAILED", {
+        url: healthUrl,
+        status: response.status
+      });
+    }
+  } catch (err) {
+    clearTimeout(timeout);
+    logger.warn("Enrichment service: FAILED", {
+      url: healthUrl,
+      error: err?.message || String(err)
+    });
+  }
 }
 
 server.listen(cfg.port, cfg.host, () => {
-  console.log(`[INF] AI Hub 1.2 listening on ${cfg.baseUrl}`);
-  console.log(`[INF] Room WebSocket ready at ${cfg.wsBaseUrl}/ws/room`);
+  logger.info("HTTP server listening", {
+    host: cfg.host,
+    port: cfg.port,
+    baseUrl: cfg.baseUrl
+  });
+  logger.info("Room WebSocket ready", { url: `${cfg.wsBaseUrl}/ws/room` });
+
+  if (cfg.enrich.enabled) {
+    logger.info("Enrichment service configured", {
+      url: cfg.enrich.url,
+      timeoutMs: cfg.enrich.timeout
+    });
+  } else {
+    logger.warn("Enrichment service disabled");
+  }
+
   logHardwareBanner();
+  reportEnrichmentHealth();
 
   // Check and display active model status
   const activeModel = getActiveModel();
   if (activeModel) {
-    console.log(`[SYS] ✓ Active model: ${activeModel.id} (${activeModel.provider})`);
+    logger.info("Active model ready", {
+      id: activeModel.id,
+      provider: activeModel.provider
+    });
   } else {
-    console.log(`[SYS] ⚠️  No active model selected!`);
-    console.log(`[SYS] → Run '/model' to see available models and select one`);
+    logger.warn("No active model selected", {
+      guidance: "Run /model inside the console to choose one"
+    });
   }
 
   startCommandConsole();
+  logger.info("Command console started");
   if (!listDownloadedLocalArtifacts().length) {
-    console.log(
-      "[INF] No local model downloads detected yet. Run '/model' to browse available models."
-    );
+    logger.info("No local model downloads detected yet", {
+      action: "Run /model to browse available models"
+    });
   }
 });

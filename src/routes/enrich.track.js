@@ -4,6 +4,7 @@ import { getSongInfo, getAlbumInfo, getArtistInfo } from "../services/wikipedia.
 import { mbSearchRecording, sleep, mbGetWikipediaIdForRecording, mbGetWikipediaIdForReleaseGroup, mbGetWikipediaIdForArtist } from "../services/musicbrainz.js";
 import { getMusicBrainzDataEnhanced } from "../services/musicbrainz.enhanced.js";
 import { wdGetEnwikiTitle } from "../services/wikidata.js";
+import { logger } from "../utils/logger.js";
 
 const router = Router();
 
@@ -82,7 +83,7 @@ router.get("/track", async (req, res) => {
         // Good data found - use it and skip enhanced MB
         wikiData = quickWikiData;
         wikiFrom = 'wikipedia-fast-path';
-        console.log(`[ENRICH] Fast path succeeded for "${title}" - skipping MB enhanced`);
+        logger.debug(`[ENRICH] Fast path succeeded for "${title}" - skipping MB enhanced`);
       }
     } catch {}
 

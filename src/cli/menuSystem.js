@@ -64,7 +64,11 @@ export function showMainMenu() {
   console.log("");
   console.log(`    ${color("/model", ansi.cyan).padEnd(25)}  Manage AI models`);
   console.log(`    ${color("/keygen [label]", ansi.green).padEnd(25)}  Generate API key`);
+  console.log(`    ${color("/tune", ansi.yellow).padEnd(25)}  🎛️  Fine-tune model parameters`);
+  console.log(`    ${color("/temp [value]", ansi.yellow).padEnd(25)}  🌡️  Configure AI temperature`);
   console.log(`    ${color("/py", ansi.cyan).padEnd(25)}  Start Python ONNX server`);
+  console.log(`    ${color("/setup", ansi.gray).padEnd(25)}  Run first-time setup wizard`);
+  console.log(`    ${color("/check-cuda", ansi.gray).padEnd(25)}  🔍 Check CUDA/cuDNN installation`);
   console.log(`    ${color("/help", ansi.cyan).padEnd(25)}  Show this menu`);
   console.log(`    ${color("/clear", ansi.cyan).padEnd(25)}  Clear screen`);
   console.log("");

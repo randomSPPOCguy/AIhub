@@ -1,0 +1,132 @@
+{
+  "type": "album",
+  "title": "OK Computer",
+  "artist": "Radiohead",
+  "mbid": "e16cda60-6e6d-4a32-8d7c-e12d9aeb72de",
+  "artist_mbid": "a74b1b7f-71a5-4011-9441-d0b5e4122711",
+  "ids": {
+    "musicbrainz": "e16cda60-6e6d-4a32-8d7c-e12d9aeb72de"
+  },
+  "urls": {
+    "discogs": "https://www.discogs.com/release/1659238"
+  },
+  "context": "album",
+  "facts": [
+    "Released on 1997",
+    "Released by Parlophone",
+    "12 tracks, total length 53:27"
+  ],
+  "sources": [
+    {
+      "provider": "musicbrainz",
+      "url": "",
+      "sections": [
+        "tracklist",
+        "release_info",
+        "metadata"
+      ]
+    }
+  ],
+  "tracklist": [
+    {
+      "position": 1,
+      "title": "Airbag",
+      "length_ms": 284400,
+      "length": "4:44",
+      "mbid": "4a7fea2e-545b-4c63-bc9a-9943cc3a29d7"
+    },
+    {
+      "position": 2,
+      "title": "Paranoid Android",
+      "length_ms": 383493,
+      "length": "6:23",
+      "mbid": "9f9cf187-d6f9-437f-9d98-d59cdbd52757"
+    },
+    {
+      "position": 3,
+      "title": "Subterranean Homesick Alien",
+      "length_ms": 267706,
+      "length": "4:27",
+      "mbid": "bd82738d-163c-4b1a-bfaf-7acffe30e68a"
+    },
+    {
+      "position": 4,
+      "title": "Exit Music (for a Film)",
+      "length_ms": 264800,
+      "length": "4:24",
+      "mbid": "23c3c36b-9449-4484-9040-6ef2125999aa"
+    },
+    {
+      "position": 5,
+      "title": "Let Down",
+      "length_ms": 299266,
+      "length": "4:59",
+      "mbid": "47b02a82-c3bf-4647-b894-dd1c8f608e7f"
+    },
+    {
+      "position": 6,
+      "title": "Karma Police",
+      "length_ms": 261626,
+      "length": "4:21",
+      "mbid": "9e2ad5bc-c6f9-40d2-a36f-3122ee2072a3"
+    },
+    {
+      "position": 7,
+      "title": "Fitter Happier",
+      "length_ms": 117333,
+      "length": "1:57",
+      "mbid": "5838f978-0822-4e28-874f-e1511324ec3a"
+    },
+    {
+      "position": 8,
+      "title": "Electioneering",
+      "length_ms": 230640,
+      "length": "3:50",
+      "mbid": "ba0a796c-bd1f-4d4b-85a8-918f217a204a"
+    },
+    {
+      "position": 9,
+      "title": "Climbing Up the Walls",
+      "length_ms": 285200,
+      "length": "4:45",
+      "mbid": "c7225576-001e-423c-adc1-58f0985dcb27"
+    },
+    {
+      "position": 10,
+      "title": "No Surprises",
+      "length_ms": 228533,
+      "length": "3:48",
+      "mbid": "980a426e-623e-4ea5-98c7-008d037a0508"
+    },
+    {
+      "position": 11,
+      "title": "Lucky",
+      "length_ms": 259626,
+      "length": "4:19",
+      "mbid": "79047824-f821-4b1a-9893-e0cea1c947dd"
+    },
+    {
+      "position": 12,
+      "title": "The Tourist",
+      "length_ms": 324533,
+      "length": "5:24",
+      "mbid": "610c0012-6eb4-42a0-b759-3a2532ce0f15"
+    }
+  ],
+  "metadata": {
+    "date": "1997",
+    "year": "1997",
+    "country": "AU",
+    "barcode": "724385522925",
+    "labels": [
+      {
+        "name": "Parlophone",
+        "catalog_number": "7243 8 55229 2 5"
+      }
+    ],
+    "genres": [],
+    "total_tracks": 12,
+    "total_length": "53:27",
+    "total_length_ms": 3207156
+  }
+}

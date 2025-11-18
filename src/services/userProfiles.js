@@ -1,4 +1,5 @@
 import { db } from "../db/connection.js";
+import { logger } from "../utils/logger.js";
 
 /**
  * Get user profile by user_id
@@ -102,7 +103,7 @@ export function updateUserMood(userId, mood) {
   if (!userId) return;
   const validMoods = ["negative", "neutral", "positive"];
   if (!validMoods.includes(mood)) {
-    console.warn(`[USER_PROFILES] Invalid mood: ${mood}, using neutral`);
+    logger.warn("[USER_PROFILES] Invalid mood provided", { userId, mood });
     mood = "neutral";
   }
   return upsertUserProfile(userId, { current_mood: mood });
@@ -117,7 +118,7 @@ export function updateUserTone(userId, tone) {
   if (!userId) return;
   const validTones = ["snarky", "neutral", "positive"];
   if (!validTones.includes(tone)) {
-    console.warn(`[USER_PROFILES] Invalid tone: ${tone}, using neutral`);
+    logger.warn("[USER_PROFILES] Invalid tone provided", { userId, tone });
     tone = "neutral";
   }
   return upsertUserProfile(userId, { tone_preference: tone });

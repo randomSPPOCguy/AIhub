@@ -6,9 +6,12 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
+    "setup": "node scripts/setup.js",
+    "check-cuda": "node scripts/check-cuda.js",
     "migrate": "node src/db/migrate.js",
     "keygen": "node bin/keygen.mjs",
-    "python-ai": "python python_ai/server.py"
+    "python-ai": "python python_ai/server.py",
+    "frank:enrich": "node src/cli/frankEnrich.js"
   },
   "engines": {
     "node": ">=18.0.0"

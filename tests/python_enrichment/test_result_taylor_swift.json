@@ -1,0 +1,85 @@
+{
+  "mbid": "20244d07-534f-4eff-b4d4-930878889970",
+  "name": "Taylor Swift",
+  "wikidata_id": "Q26876",
+  "urls": {
+    "musicbrainz": "https://musicbrainz.org/artist/20244d07-534f-4eff-b4d4-930878889970",
+    "wikidata": "https://www.wikidata.org/wiki/Q26876",
+    "official": "http://taylorswift.jp/"
+  },
+  "albums_from_mb": [
+    {
+      "title": "Taylor Swift",
+      "date": "2006-10-24",
+      "type": "Album",
+      "mbid": "ba1d0c2a-bb07-38bc-835c-a880f76f1309"
+    },
+    {
+      "title": "Fearless",
+      "date": "2008-11-11",
+      "type": "Album",
+      "mbid": "63eba062-847c-3b73-8b0f-6baf27bba6fa"
+    },
+    {
+      "title": "Speak Now",
+      "date": "2010-10-25",
+      "type": "Album",
+      "mbid": "ba1259eb-d41e-41c5-a70c-0e6fa73e6708"
+    },
+    {
+      "title": "Red",
+      "date": "2012-08-10",
+      "type": "Album",
+      "mbid": "a73cecde-0923-40ad-aad1-e8c24ba6c3d2"
+    },
+    {
+      "title": "1989",
+      "date": "2014-10-24",
+      "type": "Album",
+      "mbid": "4d9ec1c2-58ec-48a4-aa0a-916718adead0"
+    },
+    {
+      "title": "reputation",
+      "date": "2017-11-10",
+      "type": "Album",
+      "mbid": "f060c8fd-bec9-426e-800e-8efc040a71e6"
+    },
+    {
+      "title": "Lover",
+      "date": "2019-08-23",
+      "type": "Album",
+      "mbid": "30e9785b-7b50-4d29-b3d1-96fb55e3397f"
+    },
+    {
+      "title": "folklore",
+      "date": "2020-07-24",
+      "type": "Album",
+      "mbid": "f1d08326-c23b-4b43-be3b-20b33ab10bf6"
+    },
+    {
+      "title": "evermore",
+      "date": "2020-12-11",
+      "type": "Album",
+      "mbid": "e86d6219-f5a2-4edd-bf2b-3f9eab190ae0"
+    },
+    {
+      "title": "Fearless (Taylor’s version)",
+      "date": "2021-04-09",
+      "type": "Album",
+      "mbid": "d2e4838d-90e1-471c-bda0-fd816dabb2d4"
+    }
+  ],
+  "album_count": 10,
+  "facts": [
+    "Discography: Taylor Swift (2006), Fearless (2008), Speak Now (2010), Red (2012), 1989 (2014) and 5 more albums",
+    "Taylor Swift has released 10 studio albums"
+  ],
+  "sources": [
+    {
+      "provider": "musicbrainz",
+      "url": "https://musicbrainz.org/artist/20244d07-534f-4eff-b4d4-930878889970",
+      "title": "Taylor Swift",
+      "section": "Discography"
+    }
+  ]
+}

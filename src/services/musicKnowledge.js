@@ -4,6 +4,64 @@
 import { getArtistInfo, getSongInfo, getAlbumInfo } from "./wikipedia.enhanced.js";
 import { getMusicBrainzDataEnhanced } from "./musicbrainz.enhanced.js";
 import { mbSearchArtistByName } from "./musicbrainz.js";
+import { logger } from "../utils/logger.js";
+
+const musicInfo = (message, meta) => logger.info(`[MUSIC] ${message}`, meta);
+const musicWarn = (message, meta) => logger.warn(`[MUSIC] ${message}`, meta);
+const musicDebug = (message, meta) => logger.debug(`[MUSIC] ${message}`, meta);
+const knowledgeError = (message, meta) => logger.error(`[MUSIC_KNOWLEDGE] ${message}`, meta);
+
+const KEYWORD_STOPWORDS = new Set([
+  "the", "and", "for", "with", "that", "this", "what", "who", "how", "why",
+  "when", "where", "need", "want", "know", "tell", "anything", "about",
+  "your", "you", "does", "is", "are", "i", "im", "imma", "its", "it's", "let",
+  "me", "please", "can", "could", "should", "would", "also", "just", "bot"
+]);
+
+const COMMON_NON_ARTISTS = new Set([
+  "the bot", "bot", "you", "this", "that", "yourself", "myself",
+  "their", "them", "himself", "herself", "itself", "themselves", "me", "us",
+  "it", "here", "there", "what", "how", "why", "when", "where", "themself"
+]);
+
+const PHRASE_NOISE_WORDS = new Set([
+  "last", "latest", "newest", "recent", "album", "release",
+  "record", "song", "track", "playlist", "made", "they", "them",
+  "any", "some", "other", "another", "recommend", "suggest", "from", "by",
+  "what", "was", "is", "are", "a", "the", "to", "for", "this", "that"
+]);
+
+const userArtistContext = new Map();
+
+function rememberArtistForUser(userId, artist) {
+  if (!userId || !artist) return;
+  userArtistContext.set(userId, artist.toLowerCase());
+}
+
+function recallArtistForUser(userId) {
+  if (!userId) return null;
+  return userArtistContext.get(userId) || null;
+}
+
+function normalizeKeyword(value) {
+  if (!value) return null;
+  const cleaned = value
+    .toLowerCase()
+    .replace(/["']/g, "")
+    .trim();
+  if (!cleaned) return null;
+  return cleaned;
+}
+
+function addArtistCandidate(entities, name, addKeyword, commonNonArtists = COMMON_NON_ARTISTS) {
+  if (!name) return;
+  const normalized = name.toLowerCase().trim();
+  if (normalized.length <= 2 || commonNonArtists.includes(normalized)) return;
+  if (!entities.artists.includes(normalized)) {
+    entities.artists.push(normalized);
+    addKeyword(normalized);
+  }
+}
 
 /**
  * Extract potential artist/song names from a user message
@@ -11,11 +69,49 @@ import { mbSearchArtistByName } from "./musicbrainz.js";
  */
 function extractMusicEntities(message, metadata = {}) {
   const text = message.toLowerCase();
+  const keywordSets = {
+    wikipedia: new Set(),
+    musicbrainz: new Set()
+  };
   const entities = {
     artists: [],
     songs: [],
     albums: [],
     queryType: null
+  };
+
+  const recordKeyword = (value, sources = ["wikipedia", "musicbrainz"]) => {
+    const normalized = normalizeKeyword(value);
+    if (!normalized) return;
+    sources.forEach((source) => {
+      if (keywordSets[source]) {
+        keywordSets[source].add(normalized);
+      }
+    });
+  };
+
+  const addArtistKeyword = (artistName) => {
+    recordKeyword(artistName);
+    recordKeyword(`${artistName} artist`, ["musicbrainz"]);
+    recordKeyword(`${artistName} biography`, ["wikipedia"]);
+  };
+
+  const addSongKeyword = (songTitle) => {
+    recordKeyword(songTitle);
+    recordKeyword(`${songTitle} song`, ["musicbrainz"]);
+    recordKeyword(`${songTitle} lyrics`, ["wikipedia"]);
+  };
+
+  const addAlbumKeyword = (albumName) => {
+    recordKeyword(albumName);
+    recordKeyword(`${albumName} album`, ["musicbrainz"]);
+  };
+
+  const addMessageKeywords = () => {
+    const tokens = extractMessageTokens(text);
+    tokens.forEach((token) => recordKeyword(token));
+    const phraseCandidates = generatePhraseCandidates(tokens, 2, 3);
+    phraseCandidates.forEach((phrase) => recordKeyword(phrase));
   };
 
   // Check if now_playing is mentioned and available in metadata
@@ -27,10 +123,22 @@ function extractMusicEntities(message, metadata = {}) {
 
   if (mentionsCurrentSong && metadata?.now_playing) {
     const np = metadata.now_playing;
-    if (np.artist) entities.artists.push(np.artist);
-    if (np.title) entities.songs.push(np.title);
-    if (np.album) entities.albums.push(np.album);
+    if (np.artist) {
+      addArtistCandidateSafe(np.artist);
+    }
+    if (np.title) {
+      entities.songs.push(np.title);
+      addSongKeyword(np.title);
+    }
+    if (np.album) {
+      entities.albums.push(np.album);
+      addAlbumKeyword(np.album);
+    }
     entities.queryType = "now_playing";
+    entities.keywords = {
+      wikipedia: [...keywordSets.wikipedia],
+      musicbrainz: [...keywordSets.musicbrainz]
+    };
     return entities;
   }
 
@@ -42,16 +150,48 @@ function extractMusicEntities(message, metadata = {}) {
     /(?:artist|band|rapper|singer) ([a-z0-9 &'-]+?)(?:\?|$)/i,
   ];
 
+  const artistPhrase = "([a-z0-9]+(?:[ &'-][a-z0-9]+)*)";
+  const trailingBoundary = "(?=(?:\\s|$|\\?|bot))";
+
+  const recommendationArtistPatterns = [
+    new RegExp(`from\\s+${artistPhrase}${trailingBoundary}`, "i"),
+    new RegExp(`recommend(?:\\s+\\w+){0,4}?\\s+(?:song|track|album|playlist|tune)(?:\\s+to listen to)?(?:\\s+by|\\s+from)?\\s+${artistPhrase}${trailingBoundary}`, "i"),
+    new RegExp(`suggest(?:\\s+another|\\s+some)?\\s+(?:song|track|album|playlist|tune)(?:\\s+by|\\s+from)?\\s+${artistPhrase}${trailingBoundary}`, "i"),
+    new RegExp(`what about\\s+${artistPhrase}${trailingBoundary}`, "i")
+  ];
+
+  const albumQueryPatterns = [
+    new RegExp(`(?:what|which)\\s+(?:was|is|are)\\s+(?:the\\s+)?${artistPhrase}\\s+(?:last|latest|newest|most recent)\\s+(?:album|release|record)`, "i"),
+    new RegExp(`${artistPhrase}\\s+(?:last|latest|newest|most recent)\\s+(?:album|release|record)`, "i")
+  ];
+
+  // Common words/phrases that are NOT artist names
+  const addArtistCandidateSafe = (value) => addArtistCandidate(entities, value, addArtistKeyword);
+
   for (const pattern of artistPatterns) {
     const match = text.match(pattern);
     if (match && match[1]) {
       const name = match[1].trim();
       // Filter out common words that aren't artist names
-      if (name.length > 2 && !["the bot", "bot", "you", "this", "that"].includes(name)) {
-        entities.artists.push(name);
+      if (name.length > 2 && !COMMON_NON_ARTISTS.has(name.toLowerCase())) {
+        addArtistCandidateSafe(name);
         entities.queryType = "artist";
         break;
       }
+    }
+  }
+
+  for (const pattern of recommendationArtistPatterns) {
+    const match = text.match(pattern);
+    if (match && match[1]) {
+      addArtistCandidateSafe(match[1].trim());
+    }
+  }
+
+  for (const pattern of albumQueryPatterns) {
+    const match = text.match(pattern);
+    if (match && match[1]) {
+      addArtistCandidateSafe(match[1].trim());
     }
   }
 
@@ -64,7 +204,9 @@ function extractMusicEntities(message, metadata = {}) {
   for (const pattern of songPatterns) {
     const match = text.match(pattern);
     if (match && match[1]) {
-      entities.songs.push(match[1].trim());
+      const songTitle = match[1].trim();
+      entities.songs.push(songTitle);
+      addSongKeyword(songTitle);
       entities.queryType = "song";
     }
   }
@@ -72,10 +214,75 @@ function extractMusicEntities(message, metadata = {}) {
   // Extract "by [artist]" if present
   const byArtistMatch = text.match(/by ([a-z0-9 &'-]+?)(?:\?|$)/i);
   if (byArtistMatch && byArtistMatch[1]) {
-    entities.artists.push(byArtistMatch[1].trim());
+    addArtistCandidateSafe(byArtistMatch[1].trim());
   }
 
+  addMessageKeywords();
+
+  if (!entities.artists.length) {
+    const remembered = recallArtistForUser(metadata?.user_id);
+    if (remembered) {
+      addArtistCandidateSafe(remembered);
+      entities.queryType = entities.queryType || "context";
+    }
+  }
+
+  entities.keywords = {
+    wikipedia: [...keywordSets.wikipedia],
+    musicbrainz: [...keywordSets.musicbrainz]
+  };
+
   return entities;
+}
+
+async function resolveArtistFromKeywords(entities) {
+  if (!entities || entities.artists.length) return null;
+  const phraseSet = new Set([
+    ...(entities.keywords?.wikipedia || []),
+    ...(entities.keywords?.musicbrainz || [])
+  ]);
+  const candidates = Array.from(phraseSet)
+    .map((phrase) => phrase.replace(/[^a-z0-9\s]/gi, " ").trim())
+    .filter((phrase) => phrase.split(/\s+/).length >= 2)
+    .filter((phrase) => !COMMON_NON_ARTISTS.has(phrase));
+
+  candidates.sort((a, b) => b.length - a.length);
+
+  const prioritizedExpressions = [];
+  const noisyExpressions = [];
+  for (const candidate of candidates) {
+    const tokens = candidate.split(/\s+/).filter(Boolean);
+    const hasNoise = tokens.some((token) => PHRASE_NOISE_WORDS.has(token));
+    if (hasNoise) {
+      noisyExpressions.push(candidate);
+    } else {
+      prioritizedExpressions.push(candidate);
+    }
+  }
+
+  const sortedCandidates = [...prioritizedExpressions, ...noisyExpressions];
+
+  let attempts = 0;
+  for (const candidate of sortedCandidates) {
+    if (attempts >= 3) break;
+    if (!candidate) continue;
+    attempts++;
+    try {
+      const result = await mbSearchArtistByName(candidate, 1);
+      if (result && result.score >= 50) {
+        entities.artists.push(result.name.toLowerCase());
+        entities.queryType = entities.queryType || "artist";
+        musicDebug("Resolved artist via MusicBrainz keywords", { artist: result.name });
+        return result.name;
+      }
+    } catch (err) {
+      musicWarn("Error resolving artist from keywords", {
+        candidate,
+        error: err?.message || String(err)
+      });
+    }
+  }
+  return null;
 }
 
 /**
@@ -118,7 +325,10 @@ async function fetchArtistFacts(artistName) {
 
     return null;
   } catch (error) {
-    console.error(`[MUSIC_KNOWLEDGE] Error fetching artist facts for "${artistName}":`, error.message);
+    knowledgeError("Error fetching artist facts", {
+      artist: artistName,
+      error: error?.message || String(error)
+    });
     return null;
   }
 }
@@ -163,7 +373,7 @@ async function fetchSongFacts(songTitle, artistName = null) {
 
     return null;
   } catch (error) {
-    console.error(`[MUSIC_KNOWLEDGE] Error fetching song facts:`, error.message);
+    knowledgeError("Error fetching song facts", { error: error?.message || String(error) });
     return null;
   }
 }
@@ -174,9 +384,27 @@ async function fetchSongFacts(songTitle, artistName = null) {
  */
 export async function enrichMusicQuery(message, metadata = {}) {
   const entities = extractMusicEntities(message, metadata);
+  await resolveArtistFromKeywords(entities);
+
+  musicInfo("Extracting music entities", { message });
+  musicDebug("Entity extraction summary", {
+    artists: entities.artists.length,
+    songs: entities.songs.length,
+    albums: entities.albums.length
+  });
+  if (entities.artists.length > 0) {
+    musicDebug("Artists detected", { artists: entities.artists });
+  }
+  if (entities.songs.length > 0) {
+    musicDebug("Songs detected", { songs: entities.songs });
+  }
+  if (entities.queryType) {
+    musicDebug("Query type detected", { queryType: entities.queryType });
+  }
 
   // No music entities found
   if (entities.artists.length === 0 && entities.songs.length === 0) {
+    musicWarn("No music entities found, skipping enrichment");
     return null;
   }
 
@@ -185,8 +413,10 @@ export async function enrichMusicQuery(message, metadata = {}) {
 
   // Fetch artist facts
   for (const artistName of entities.artists.slice(0, 2)) { // Limit to 2 artists
+    musicInfo("Searching for artist facts", { artist: artistName });
     const artistFacts = await fetchArtistFacts(artistName);
     if (artistFacts) {
+      musicInfo("Artist facts found", { artist: artistName, source: artistFacts.source });
       const formatted = formatArtistFacts(artistFacts);
       if (formatted.prompt) {
         promptSegments.push(formatted.prompt);
@@ -194,6 +424,11 @@ export async function enrichMusicQuery(message, metadata = {}) {
       if (formatted.display) {
         displaySegments.push(formatted.display);
       }
+      if (metadata?.user_id && artistFacts.artist) {
+        rememberArtistForUser(metadata.user_id, artistFacts.artist);
+      }
+    } else {
+      musicWarn("No artist facts found", { artist: artistName });
     }
   }
 
@@ -201,8 +436,17 @@ export async function enrichMusicQuery(message, metadata = {}) {
   if (entities.songs.length > 0) {
     const songTitle = entities.songs[0];
     const artistName = entities.artists[0] || null;
+    musicInfo("Searching for song facts", {
+      song: songTitle,
+      artist: artistName || null
+    });
     const songFacts = await fetchSongFacts(songTitle, artistName);
     if (songFacts) {
+      musicInfo("Song facts found", {
+        song: songTitle,
+        artist: artistName,
+        source: songFacts.source
+      });
       const formatted = formatSongFacts(songFacts);
       if (formatted.prompt) {
         promptSegments.push(formatted.prompt);
@@ -210,12 +454,17 @@ export async function enrichMusicQuery(message, metadata = {}) {
       if (formatted.display) {
         displaySegments.push(formatted.display);
       }
+    } else {
+      musicWarn("No song facts found", { song: songTitle });
     }
   }
 
   if (promptSegments.length === 0) {
+    musicWarn("No facts collected despite finding entities");
     return null;
   }
+
+  musicInfo("Music enrichment complete", { factCount: promptSegments.length });
 
   return {
     entities,
@@ -302,6 +551,25 @@ function buildSongFactsPrompt(facts) {
 function truncate(text, maxLength) {
   if (!text || text.length <= maxLength) return text;
   return text.substring(0, maxLength).trim() + "...";
+}
+
+function extractMessageTokens(text) {
+  if (!text) return [];
+  return text
+    .toLowerCase()
+    .split(/[^a-z0-9']+/)
+    .map((token) => token.trim())
+    .filter((token) => token.length >= 2 && !KEYWORD_STOPWORDS.has(token));
+}
+
+function generatePhraseCandidates(tokens, minWords = 2, maxWords = 3) {
+  const phrases = new Set();
+  for (let i = 0; i < tokens.length; i++) {
+    for (let len = minWords; len <= maxWords && i + len <= tokens.length; len++) {
+      phrases.add(tokens.slice(i, i + len).join(" "));
+    }
+  }
+  return Array.from(phrases);
 }
 
 /**

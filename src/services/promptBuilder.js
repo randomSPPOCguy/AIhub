@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { cfg } from "../config.js";
+import { logger } from "../utils/logger.js";
 
 function resolveBehaviorPrompt() {
   if (cfg.behaviorPrompt.inline) {
@@ -13,7 +14,9 @@ function resolveBehaviorPrompt() {
         return prompt.trim();
       }
     } catch (err) {
-      console.warn("[PROMPT] Failed to load BOT_BEHAVIOR_PROMPT_FILE:", err.message);
+      logger.warn("[PROMPT] Failed to load BOT_BEHAVIOR_PROMPT_FILE", {
+        error: err?.message || String(err)
+      });
     }
   }
   return "You are the AI Hub room assistant. Use the provided metadata to answer concisely and stay on topic.";

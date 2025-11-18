@@ -1,0 +1,85 @@
+{
+  "mbid": "a74b1b7f-71a5-4011-9441-d0b5e4122711",
+  "name": "Radiohead",
+  "wikidata_id": "Q44190",
+  "urls": {
+    "musicbrainz": "https://musicbrainz.org/artist/a74b1b7f-71a5-4011-9441-d0b5e4122711",
+    "wikidata": "https://www.wikidata.org/wiki/Q44190",
+    "official": "http://www.radiohead.com/"
+  },
+  "albums_from_mb": [
+    {
+      "title": "Pablo Honey",
+      "date": "1993-02-22",
+      "type": "Album",
+      "mbid": "cd76f76b-ff15-3784-a71d-4da3078a6851"
+    },
+    {
+      "title": "The Bends",
+      "date": "1994-11-29",
+      "type": "Album",
+      "mbid": "b8048f24-c026-3398-b23a-b5e50716cbc7"
+    },
+    {
+      "title": "OK Computer",
+      "date": "1997-05-21",
+      "type": "Album",
+      "mbid": "b1392450-e666-3926-a536-22c65f834433"
+    },
+    {
+      "title": "Kid A",
+      "date": "2000-08-03",
+      "type": "Album",
+      "mbid": "e75c0549-ad55-39e3-8025-c72c5d4a3c5d"
+    },
+    {
+      "title": "Amnesiac",
+      "date": "2001-06-04",
+      "type": "Album",
+      "mbid": "bca9280e-28b4-327f-8fe0-fd918579e486"
+    },
+    {
+      "title": "Hail to the Thief",
+      "date": "2003-05-26",
+      "type": "Album",
+      "mbid": "5c14fd50-a2f1-3672-9537-b0dad91bea2f"
+    },
+    {
+      "title": "In Rainbows",
+      "date": "2007-10-10",
+      "type": "Album",
+      "mbid": "6e335887-60ba-38f0-95af-fae7774336bf"
+    },
+    {
+      "title": "The King of Limbs",
+      "date": "2011-02-18",
+      "type": "Album",
+      "mbid": "899b6d09-807e-4c18-a6d4-3642e00d6a3d"
+    },
+    {
+      "title": "A Moon Shaped Pool",
+      "date": "2016-05-08",
+      "type": "Album",
+      "mbid": "bbce0087-d386-4246-a51d-dbcdfdbe8fb2"
+    },
+    {
+      "title": "Album Box Set",
+      "date": "2007-12-10",
+      "type": "Album",
+      "mbid": "b7db08f4-835a-4a69-970b-5321e6305032"
+    }
+  ],
+  "album_count": 10,
+  "facts": [
+    "Discography: Pablo Honey (1993), The Bends (1994), OK Computer (1997), Kid A (2000), Amnesiac (2001) and 5 more albums",
+    "Radiohead has released 10 studio albums"
+  ],
+  "sources": [
+    {
+      "provider": "musicbrainz",
+      "url": "https://musicbrainz.org/artist/a74b1b7f-71a5-4011-9441-d0b5e4122711",
+      "title": "Radiohead",
+      "section": "Discography"
+    }
+  ]
+}
