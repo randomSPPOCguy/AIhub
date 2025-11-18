@@ -519,7 +519,12 @@ function formatEnrichmentPrompt(enrichmentResponse) {
   }
 
   lines.push("");
-  lines.push("Use this enrichment data to provide accurate, well-sourced information in your response.");
+  lines.push("=== IMPORTANT INSTRUCTIONS ===");
+  lines.push("This enrichment data is CURRENT and comes from live sources (MusicBrainz, Wikipedia, Wikidata).");
+  lines.push("DO NOT say 'as of my last update in 2023' or similar disclaimers.");
+  lines.push("DO NOT claim your knowledge is outdated when you have current enrichment data.");
+  lines.push("Use this enrichment data to provide accurate, up-to-date, well-sourced information in your response.");
+  lines.push("If the data includes album information with years, trust it - it's current as of today.");
 
   return lines.join("\n");
 }

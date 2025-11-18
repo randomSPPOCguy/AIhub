@@ -69,7 +69,7 @@ export const cfg = {
   enrich: {
     url: process.env.ENRICH_URL || `http://localhost:${enrichPort}`,
     token: process.env.ENRICH_TOKEN || process.env.AIHUB_SERVICE_TOKEN || "",
-    timeout: parseIntWithFallback(process.env.ENRICH_TIMEOUT_MS, 4000),
+    timeout: parseIntWithFallback(process.env.ENRICH_TIMEOUT_MS, 6000),
     enabled: toBool(process.env.ENRICHMENT_ENABLED, true),
     wikipediaEnabled: toBool(process.env.ENRICH_WIKIPEDIA_ENABLED, true),
     musicbrainzEnabled: toBool(process.env.ENRICH_MUSICBRAINZ_ENABLED, true)

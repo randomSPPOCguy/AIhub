@@ -27,6 +27,30 @@ try:
 except ImportError:
     ort = None
 
+# Check for GPU providers
+def get_execution_providers():
+    """Get optimal execution providers for current system."""
+    if not ort:
+        return []
+
+    available = ort.get_available_providers()
+    providers = []
+
+    # Prefer DirectML on Windows (best GPU support without CUDA setup)
+    if 'DmlExecutionProvider' in available:
+        providers.append('DmlExecutionProvider')
+        logger.info("DirectML GPU acceleration available")
+
+    # CUDA if available
+    if 'CUDAExecutionProvider' in available:
+        providers.append('CUDAExecutionProvider')
+        logger.info("CUDA GPU acceleration available")
+
+    # Fallback to CPU
+    providers.append('CPUExecutionProvider')
+
+    return providers
+
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if load_dotenv:
     env_path = PROJECT_ROOT / "config.env"
@@ -41,6 +65,44 @@ logging.basicConfig(level=logging.INFO)
 MODEL_ROOT = os.getenv("PYTHON_MODEL_ROOT", os.path.join(os.getcwd(), "models", "downloads"))
 DEFAULT_PORT = int(os.getenv("PYTHON_AI_PORT", "8000"))
 HOST = os.getenv("PYTHON_AI_HOST", "0.0.0.0")
+
+# Standard model search locations (checked in order)
+def get_model_search_paths():
+    """Returns a list of standard locations to search for models."""
+    search_paths = []
+
+    # 1. Configured MODEL_ROOT
+    if MODEL_ROOT:
+        search_paths.append(os.path.abspath(MODEL_ROOT))
+
+    # 2. Project-relative models directory
+    project_models = os.path.join(PROJECT_ROOT, "models", "downloads")
+    if project_models not in search_paths:
+        search_paths.append(os.path.abspath(project_models))
+
+    # 3. User home directory
+    home_dir = os.path.expanduser("~")
+    user_models = os.path.join(home_dir, ".aihub", "models")
+    if user_models not in search_paths:
+        search_paths.append(user_models)
+
+    # 4. Windows: Public folder (only if exists - for backward compatibility)
+    if sys.platform == "win32":
+        public_models = os.path.join(os.environ.get("PUBLIC", "C:\\Users\\Public"), "AIhub", "Models")
+        if os.path.exists(public_models) and public_models not in search_paths:
+            search_paths.append(public_models)
+
+    # 5. Linux/Mac: System-wide install locations (only if exists)
+    if sys.platform != "win32":
+        system_locations = [
+            "/usr/local/share/aihub/models",
+            "/opt/aihub/models"
+        ]
+        for loc in system_locations:
+            if os.path.exists(loc) and loc not in search_paths:
+                search_paths.append(loc)
+
+    return search_paths
 
 app = fastapi.FastAPI(title="AI Hub ONNX Runtime GenAI service")
 
@@ -69,34 +131,102 @@ class ModelBundle:
     def __init__(self, model_path: str, model_id: Optional[str]):
         self.path = model_path
         self.model_id = model_id or os.path.basename(model_path.rstrip(os.sep))
-        logger.info("Loading ONNX GenAI model %s from %s", self.model_id, model_path)
+
+        # Get optimal execution providers
+        exec_providers = get_execution_providers()
+        logger.info("Loading ONNX GenAI model %s from %s with providers: %s",
+                   self.model_id, model_path, exec_providers)
+
         self.model = ort_genai.Model(model_path)
         self.tokenizer = ort_genai.Tokenizer(self.model)
+
+        # Log actual device being used
+        logger.info("Model loaded successfully on device: %s",
+                   getattr(self.model, 'device_type', 'unknown'))
 
 
 MODEL_CACHE: Dict[str, ModelBundle] = {}
 
 
 def resolve_model_path(model_path: Optional[str], model_id: Optional[str]) -> str:
+    """
+    Resolves the model path by searching in standard locations.
+    Searches in order:
+    1. Explicit modelPath if provided
+    2. MODEL_ROOT / model_id
+    3. Standard search paths (project, user home, system locations)
+    """
     if model_path:
         expanded = os.path.abspath(model_path)
         if not os.path.exists(expanded):
             raise HTTPException(status_code=400, detail=f"modelPath {expanded} not found")
         return expanded
+
     if not model_id:
         raise HTTPException(status_code=400, detail="modelId or modelPath is required")
-    root = os.path.abspath(os.getenv("PYTHON_MODEL_ROOT", MODEL_ROOT))
-    candidate_dir = os.path.join(root, model_id)
-    if os.path.isdir(candidate_dir):
-        # Look for ONNX assets under this directory.
-        onnx_files = glob.glob(os.path.join(candidate_dir, "**", "*.onnx"), recursive=True)
-        if onnx_files:
-            return os.path.dirname(onnx_files[0])
-        return candidate_dir
+
+    # Get all search paths
+    search_paths = get_model_search_paths()
+
+    # Check if CUDA is available
+    has_cuda = False
+    if ort:
+        providers = ort.get_available_providers()
+        has_cuda = any("CUDA" in provider.upper() for provider in providers)
+
+    logger.info("Searching for model '%s' in %d locations (CUDA available: %s)", model_id, len(search_paths), has_cuda)
+
+    # Search each location
+    found_paths = []
+    for search_root in search_paths:
+        candidate_dir = os.path.join(search_root, model_id)
+        if os.path.isdir(candidate_dir):
+            logger.info("Found model directory: %s", candidate_dir)
+            # Look for ONNX assets under this directory
+            onnx_files = glob.glob(os.path.join(candidate_dir, "**", "*.onnx"), recursive=True)
+            if onnx_files:
+                logger.info("Found %d ONNX files in %s", len(onnx_files), candidate_dir)
+
+                # Prefer CPU versions if CUDA is not available
+                if not has_cuda:
+                    cpu_files = [f for f in onnx_files if "cpu" in f.lower() or "mobile" in f.lower()]
+                    if cpu_files:
+                        resolved_path = os.path.abspath(os.path.dirname(cpu_files[0]))
+                        logger.info("Resolved CPU model path: %s (from %s)", resolved_path, cpu_files[0])
+                        return resolved_path
+
+                # Prefer CUDA versions if CUDA is available
+                if has_cuda:
+                    cuda_files = [f for f in onnx_files if "cuda" in f.lower()]
+                    if cuda_files:
+                        resolved_path = os.path.abspath(os.path.dirname(cuda_files[0]))
+                        logger.info("Resolved CUDA model path: %s (from %s)", resolved_path, cuda_files[0])
+                        return resolved_path
+
+                # Fallback to first file found
+                resolved_path = os.path.abspath(os.path.dirname(onnx_files[0]))
+                logger.info("Resolved model path (fallback): %s (from %s)", resolved_path, onnx_files[0])
+                return resolved_path
+
+            # Directory exists but no ONNX files found
+            found_paths.append(candidate_dir)
+
     # Maybe the ID is already a file-like path
     if os.path.exists(model_id):
         return os.path.abspath(model_id)
-    raise HTTPException(status_code=404, detail=f"Unable to resolve model path for {model_id}")
+
+    # Build helpful error message
+    error_msg = f"Unable to resolve model path for '{model_id}'.\n"
+    error_msg += f"Searched in {len(search_paths)} locations:\n"
+    for path in search_paths:
+        exists = "✓" if os.path.exists(path) else "✗"
+        error_msg += f"  {exists} {path}\n"
+    if found_paths:
+        error_msg += f"\nFound directory but no ONNX files in: {found_paths[0]}"
+    error_msg += f"\nPlease ensure the model is downloaded to one of the search locations."
+
+    logger.error(error_msg)
+    raise HTTPException(status_code=404, detail=error_msg)
 
 
 def get_or_load_model(model_path: str, model_id: Optional[str]) -> ModelBundle:

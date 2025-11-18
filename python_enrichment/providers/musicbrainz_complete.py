@@ -206,26 +206,39 @@ async def search_artist(name: str) -> Optional[Dict[str, Any]]:
             # Extract release groups (albums, EPs, singles)
             for rg in artist_data.get("release-groups", []):
                 rg_type = rg.get("primary-type", "")
+                secondary_types = rg.get("secondary-types", [])
+
                 rg_data = {
                     "mbid": rg.get("id"),
                     "title": rg.get("title"),
                     "type": rg_type,
+                    "secondary_types": secondary_types,
                     "first_release_date": rg.get("first-release-date", ""),
                     "year": rg.get("first-release-date", "")[:4] if rg.get("first-release-date") else "",
                 }
 
                 result["release_groups"].append(rg_data)
 
-                # Categorize by type
+                # Categorize by type - FILTER OUT soundtracks, compilations, live albums
+                # Only include studio albums (primary type = "Album" with NO secondary types)
                 if rg_type == "Album":
-                    result["albums"].append(rg_data)
+                    # Exclude soundtracks, compilations, live albums, remixes
+                    excluded_secondary = ["Soundtrack", "Compilation", "Live", "Remix", "DJ-mix", "Mixtape/Street"]
+                    is_excluded = any(st in excluded_secondary for st in secondary_types)
+
+                    # Also check title for soundtrack indicators
+                    title_lower = rg.get("title", "").lower()
+                    is_soundtrack_in_title = any(word in title_lower for word in ["soundtrack", "ost", "score"])
+
+                    if not is_excluded and not is_soundtrack_in_title:
+                        result["albums"].append(rg_data)
                 elif rg_type == "Single":
                     result["singles"].append(rg_data)
                 elif rg_type == "EP":
                     result["eps"].append(rg_data)
 
-            # Sort by release date
-            result["albums"].sort(key=lambda x: x["first_release_date"], reverse=False)
+            # Sort by release date (newest first)
+            result["albums"].sort(key=lambda x: x["first_release_date"], reverse=True)
 
             # Add counts
             result["album_count"] = len(result["albums"])

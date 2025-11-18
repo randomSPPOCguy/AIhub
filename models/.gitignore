@@ -1,0 +1,10 @@
+# Ignore all downloaded models to avoid bloating the repository
+downloads/
+*.onnx
+*.onnx.data
+*.bin
+*.safetensors
+
+# Keep the README
+!README.md
+!.gitignore

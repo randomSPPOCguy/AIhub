@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir:*)",
+      "Bash(curl:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(python:*)",
+      "Bash(nvidia-smi)",
+      "Bash(where:*)",
+      "Bash(nul)",
+      "Bash(pip uninstall:*)",
+      "Bash(pip install:*)",
+      "Bash(=1.23.0)",
+      "Bash(tasklist:*)",
+      "Bash(timeout /t 5)",
+      "Bash(taskkill:*)",
+      "Bash(timeout:*)",
+      "Bash(Get-Process python -ErrorAction SilentlyContinue)",
+      "Bash(Where-Object { $_ainWindowTitle -eq '' })",
+      "Bash(Stop-Process -Force)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

@@ -102,22 +102,33 @@ async def enrich_artist_multi_source(
     if album_count > 0:
         facts.append(f"Released {album_count} studio albums")
 
-        # Add album titles
-        albums = mb_data.get("albums", [])[:5]
+        # Add album titles (NEWEST FIRST - sorted by date descending)
+        albums = mb_data.get("albums", [])[:10]  # Show top 10 recent albums
         if albums:
-            album_list = []
-            for album in albums:
-                title = album["title"]
-                year = album["year"]
-                if year:
-                    album_list.append(f"{title} ({year})")
-                else:
-                    album_list.append(title)
+            # Highlight the LATEST album prominently
+            latest_album = albums[0]
+            latest_title = latest_album["title"]
+            latest_year = latest_album["year"]
+            if latest_year:
+                facts.append(f"Latest album: {latest_title} ({latest_year})")
+            else:
+                facts.append(f"Latest album: {latest_title}")
 
-            album_str = ", ".join(album_list)
-            if album_count > 5:
-                album_str += f" and {album_count - 5} more"
-            facts.append(f"Albums: {album_str}")
+            # List recent albums
+            if len(albums) > 1:
+                album_list = []
+                for album in albums[1:6]:  # Next 5 recent albums
+                    title = album["title"]
+                    year = album["year"]
+                    if year:
+                        album_list.append(f"{title} ({year})")
+                    else:
+                        album_list.append(title)
+
+                album_str = ", ".join(album_list)
+                if album_count > 6:
+                    album_str += f" and {album_count - 6} more"
+                facts.append(f"Recent albums: {album_str}")
 
     result["facts"].extend(facts)
     result["sources"].append({

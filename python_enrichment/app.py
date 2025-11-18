@@ -103,12 +103,24 @@ def extract_subjects(text: str, room: Optional[RoomContext] = None) -> List[Dict
     is_album_query = any(word in text_lower for word in ["album", "record", "lp", "ep", "release"])
     is_track_query = any(word in text_lower for word in ["song", "track", "single", "tune"])
 
-    # Pattern 1: "who is [ENTITY]?" or "what is [ENTITY]?"
+    # Pattern 1a: "what was/is/whats [ARTIST]'s latest/recent/newest album/song?"
+    # Handles: "what was eminem's latest album", "whats eminems most recent album", etc.
+    latest_match = re.search(r'(?:what\s+(?:was|is)|whats?)\s+([^\']+?)(?:\'s|s)\s+(?:latest|recent|newest|most\s+recent|last)\s+(album|song|track|record)', text_lower)
+    if latest_match:
+        artist_name = latest_match.group(1).strip()
+        entity_type_query = latest_match.group(2).strip()
+        # Clean up common words
+        artist_name = re.sub(r'\b(the|a|an)\b', '', artist_name).strip()
+        if artist_name and artist_name not in [s["name"].lower() for s in subjects]:
+            # This is asking about an artist's discography
+            subjects.append({"name": artist_name.title(), "type": "artist"})
+
+    # Pattern 1b: "who is [ENTITY]?" or "what is [ENTITY]?"
     who_match = re.search(r'(?:who|what)(?:\'s| is) ([^?]+)', text_lower)
-    if who_match:
+    if who_match and not latest_match:  # Don't duplicate if latest_match found
         entity = who_match.group(1).strip()
         # Clean up common words
-        entity = re.sub(r'\s+(the|a|an)\s+', ' ', entity).strip()
+        entity = re.sub(r'\b(the|a|an)\b', '', entity).strip()
         if entity and entity not in [s["name"].lower() for s in subjects]:
             # Determine type based on context
             if is_album_query:
