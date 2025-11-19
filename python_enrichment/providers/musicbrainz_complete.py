@@ -213,7 +213,6 @@ async def search_artist(name: str) -> Optional[Dict[str, Any]]:
                     "title": rg.get("title"),
                     "type": rg_type,
                     "secondary_types": secondary_types,
-                    "disambiguation": rg.get("disambiguation", ""),
                     "first_release_date": rg.get("first-release-date", ""),
                     "year": rg.get("first-release-date", "")[:4] if rg.get("first-release-date") else "",
                 }
@@ -221,50 +220,25 @@ async def search_artist(name: str) -> Optional[Dict[str, Any]]:
                 result["release_groups"].append(rg_data)
 
                 # Categorize by type - FILTER OUT soundtracks, compilations, live albums
-                # STRICT: Only include pure studio albums (primary type = "Album" with NO secondary types)
+                # Only include studio albums (primary type = "Album" with NO secondary types)
                 if rg_type == "Album":
-                    # STRICT FILTERING: Exclude anything with secondary types that indicate non-studio albums
-                    excluded_secondary = ["Soundtrack", "Compilation", "Live", "Remix", "DJ-mix", "Mixtape/Street", "Spokenword", "Interview", "Audiobook"]
+                    # Exclude soundtracks, compilations, live albums, remixes
+                    excluded_secondary = ["Soundtrack", "Compilation", "Live", "Remix", "DJ-mix", "Mixtape/Street"]
                     is_excluded = any(st in excluded_secondary for st in secondary_types)
 
-                    # Aggressive title-based filtering for soundtracks
+                    # Also check title for soundtrack indicators
                     title_lower = rg.get("title", "").lower()
-                    disambiguation_lower = (rg.get("disambiguation", "") or "").lower()
-                    
-                    # Check for soundtrack indicators in title and disambiguation
-                    # More aggressive: check if "soundtrack" appears anywhere, even as part of other words
-                    soundtrack_keywords = [
-                        "soundtrack", "ost", "score", "original soundtrack", 
-                        "film score", "movie soundtrack", "tv soundtrack",
-                        "soundtrack album", "music from", "music of", "official soundtrack"
-                    ]
-                    # Check if any keyword appears as a whole word or as part of the title
-                    is_soundtrack_in_title = any(keyword in title_lower for keyword in soundtrack_keywords)
-                    is_soundtrack_in_disambiguation = any(keyword in disambiguation_lower for keyword in soundtrack_keywords)
-                    
-                    # Additional check: if title contains "official" and "soundtrack" (case-insensitive word boundaries)
-                    if "official" in title_lower and "soundtrack" in title_lower:
-                        is_soundtrack_in_title = True
+                    is_soundtrack_in_title = any(word in title_lower for word in ["soundtrack", "ost", "score"])
 
-                    # STRICT: Only include if:
-                    # 1. No excluded secondary types
-                    # 2. Title doesn't suggest soundtrack
-                    # 3. Disambiguation doesn't suggest soundtrack
-                    # 4. PREFER albums with NO secondary types (pure studio albums)
-                    if not is_excluded and not is_soundtrack_in_title and not is_soundtrack_in_disambiguation:
-                        # Prefer albums with no secondary types, but allow others if they pass filters
+                    if not is_excluded and not is_soundtrack_in_title:
                         result["albums"].append(rg_data)
                 elif rg_type == "Single":
                     result["singles"].append(rg_data)
                 elif rg_type == "EP":
                     result["eps"].append(rg_data)
 
-            # Sort albums: prioritize pure studio albums (no secondary types), then by date (newest first)
-            # This ensures studio albums appear before any albums with secondary types
-            result["albums"].sort(key=lambda x: (
-                len(x.get("secondary_types", [])) == 0,  # True (1) for pure studio albums, False (0) for others
-                x.get("first_release_date", ""),  # Then by date (newest first)
-            ), reverse=True)
+            # Sort by release date (newest first)
+            result["albums"].sort(key=lambda x: x["first_release_date"], reverse=True)
 
             # Add counts
             result["album_count"] = len(result["albums"])

@@ -105,37 +105,16 @@ async def enrich_artist_multi_source(
         # Add album titles (NEWEST FIRST - sorted by date descending)
         albums = mb_data.get("albums", [])[:10]  # Show top 10 recent albums
         if albums:
-            # Get the LATEST studio album (first in sorted list)
+            # Highlight the LATEST album prominently (natural format, no "Latest album:" prefix)
             latest_album = albums[0]
             latest_title = latest_album["title"]
             latest_year = latest_album["year"]
-            latest_mbid = latest_album.get("mbid")
-            
-            # Enrich the latest album to get Wikidata ID and Wikipedia info
-            if latest_mbid and latest_title:
-                try:
-                    from providers.musicbrainz_complete import search_release
-                    album_data = await search_release(latest_title, mb_data.get("name"))
-                    if album_data:
-                        # Add Wikidata ID if found
-                        if album_data.get("ids", {}).get("wikidata"):
-                            latest_album["wikidata_id"] = album_data["ids"]["wikidata"]
-                            result["ids"]["latest_album_wikidata"] = album_data["ids"]["wikidata"]
-                        
-                        # Add Wikipedia URL if found (for enrichment, not as explicit fact)
-                        if album_data.get("urls", {}).get("wikipedia"):
-                            latest_album["wikipedia_url"] = album_data["urls"]["wikipedia"]
-                            result["urls"]["latest_album_wikipedia"] = album_data["urls"]["wikipedia"]
-                except Exception:
-                    pass  # Silently fail if album enrichment doesn't work
-            
-            # State the latest album naturally (no "Latest album:" prefix)
             if latest_year:
                 facts.append(f"{latest_title} ({latest_year})")
             else:
                 facts.append(latest_title)
 
-            # List recent albums (skip the first one since we already mentioned it)
+            # List recent albums (skip first one since we already mentioned it)
             if len(albums) > 1:
                 album_list = []
                 for album in albums[1:6]:  # Next 5 recent albums
