@@ -263,17 +263,33 @@ async def call_providers(
         if subject_type in ["artist", "album", "track"] and config.ENRICH_MUSICBRAINZ_ENABLED:
             try:
                 # Use multi-source orchestrator (MusicBrainz → Wikipedia flow)
-                orchestrator_result = await enrich_artist_multi_source(subject_name, trace_id)
+                # Route to correct enrichment function based on entity type
+                orchestrator_result = await enrich_music_entity(
+                    query_text="",  # Not used in routing
+                    entity_type=subject_type,
+                    entity_name=subject_name,
+                    artist_name=None,  # Could extract from context if needed
+                    trace_id=trace_id
+                )
 
                 if orchestrator_result:
-                    # Extract subject data
+                    # Extract subject data (handle different field names for different entity types)
+                    # Artists use "name", albums/tracks use "title"
+                    entity_name = orchestrator_result.get("name") or orchestrator_result.get("title", subject_name)
+                    
                     subject_result = {
-                        "name": orchestrator_result.get("name", subject_name),
+                        "name": entity_name,
                         "type": subject_type,
                         "ids": orchestrator_result.get("ids", {}),
                         "urls": orchestrator_result.get("urls", {}),
                         "metadata": orchestrator_result.get("metadata", {}),
                     }
+                    
+                    # Add entity-specific fields
+                    if subject_type == "album" and orchestrator_result.get("artist"):
+                        subject_result["artist"] = orchestrator_result.get("artist")
+                    if subject_type == "track" and orchestrator_result.get("artist"):
+                        subject_result["artist"] = orchestrator_result.get("artist")
 
                     subjects_data.append(subject_result)
 
