@@ -232,13 +232,19 @@ async def search_artist(name: str) -> Optional[Dict[str, Any]]:
                     disambiguation_lower = (rg.get("disambiguation", "") or "").lower()
                     
                     # Check for soundtrack indicators in title and disambiguation
+                    # More aggressive: check if "soundtrack" appears anywhere, even as part of other words
                     soundtrack_keywords = [
                         "soundtrack", "ost", "score", "original soundtrack", 
                         "film score", "movie soundtrack", "tv soundtrack",
-                        "soundtrack album", "music from", "music of"
+                        "soundtrack album", "music from", "music of", "official soundtrack"
                     ]
+                    # Check if any keyword appears as a whole word or as part of the title
                     is_soundtrack_in_title = any(keyword in title_lower for keyword in soundtrack_keywords)
                     is_soundtrack_in_disambiguation = any(keyword in disambiguation_lower for keyword in soundtrack_keywords)
+                    
+                    # Additional check: if title contains "official" and "soundtrack" (case-insensitive word boundaries)
+                    if "official" in title_lower and "soundtrack" in title_lower:
+                        is_soundtrack_in_title = True
 
                     # STRICT: Only include if:
                     # 1. No excluded secondary types
