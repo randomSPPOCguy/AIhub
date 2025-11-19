@@ -35,8 +35,20 @@ $global:enrichmentJob = Start-Job -ScriptBlock {
 } -ArgumentList $enrichPath
 Start-Sleep -Seconds 3
 
-# Start Node.js AIhub Server
-Write-Host "[3/3] Starting Node.js AIhub Server (port 3000)..." -ForegroundColor Gray
+# Check and kill any process using port 7071 (Node.js server port)
+Write-Host "[3/3] Starting Node.js AIhub Server (port 7071)..." -ForegroundColor Gray
+$port7071Connections = Get-NetTCPConnection -LocalPort 7071 -ErrorAction SilentlyContinue
+if ($port7071Connections) {
+    $pids = $port7071Connections | Select-Object -ExpandProperty OwningProcess -Unique
+    foreach ($pid in $pids) {
+        $proc = Get-Process -Id $pid -ErrorAction SilentlyContinue
+        if ($proc -and $proc.Name -eq "node") {
+            Write-Host "  Killing existing Node.js process on port 7071 (PID: $pid)..." -ForegroundColor Yellow
+            Stop-Process -Id $pid -Force -ErrorAction SilentlyContinue
+            Start-Sleep -Seconds 1
+        }
+    }
+}
 Start-Sleep -Seconds 2
 Write-Host ""
 Write-Host "================================================================" -ForegroundColor Green

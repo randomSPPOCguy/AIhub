@@ -93,30 +93,41 @@ Quick reference guide for common problems when setting up or running AIhub.
 
 ## 🔌 Service Startup Issues
 
-### Issue: Port already in use (3000, 8000, 8001)
+### Issue: Port already in use (7071, 8000, 8001)
 
 **Symptoms:**
-- Error: "EADDRINUSE: address already in use"
+- Error: "EADDRINUSE: address already in use 0.0.0.0:7071"
 - Services won't start
 
 **Solutions:**
-1. **Find and kill the process:**
+1. **Automatic fix (recommended):**
+   The `start.ps1` script now automatically kills any existing Node.js process on port 7071 before starting. Just run:
    ```powershell
-   # Find process on port 3000
-   netstat -ano | findstr :3000
+   .\start.ps1
+   ```
+
+2. **Manual kill using script:**
+   ```powershell
+   .\scripts\kill-port.ps1 -Port 7071
+   ```
+
+3. **Manual kill:**
+   ```powershell
+   # Find process on port 7071
+   netstat -ano | findstr :7071
    
    # Kill the process (replace PID with actual process ID)
    taskkill /PID <PID> /F
    ```
 
-2. **Or change ports in `config.env`:**
+4. **Or change ports in `config.env`:**
    ```env
-   PORT=3001
+   PORT=7072
    PYTHON_AI_PORT=8001
    ENRICH_PORT=8002
    ```
 
-3. **Check if services are already running:**
+5. **Check if services are already running:**
    ```powershell
    # Check Node.js server
    Get-Process node -ErrorAction SilentlyContinue
