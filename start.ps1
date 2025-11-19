@@ -75,12 +75,22 @@ $cleanupScript = {
         Remove-Job -Job $global:enrichmentJob -Force -ErrorAction SilentlyContinue
     }
 
-    Get-NetTCPConnection -LocalPort 8000,8001 -ErrorAction SilentlyContinue | ForEach-Object {
+    # Kill all Node.js processes
+    Get-Process -Name "node" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+    
+    # Kill processes on our ports
+    Get-NetTCPConnection -LocalPort 7071,8000,8001 -ErrorAction SilentlyContinue | ForEach-Object {
         $processId = $_.OwningProcess
         if ($processId -gt 0) {
             Stop-Process -Id $processId -Force -ErrorAction SilentlyContinue
         }
     }
+    
+    # Kill Python server processes
+    Get-Process -Name "python" -ErrorAction SilentlyContinue | Where-Object {
+        $cmdLine = (Get-CimInstance Win32_Process -Filter "ProcessId = $($_.Id)" -ErrorAction SilentlyContinue).CommandLine
+        $cmdLine -match "(server\.py|uvicorn|app:app)"
+    } | Stop-Process -Force -ErrorAction SilentlyContinue
 
     Write-Host "All services stopped. Goodbye!" -ForegroundColor Green
 }
