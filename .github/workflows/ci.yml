@@ -20,6 +20,6 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
       - name: Build Project Frank
-        run: ./scripts/build_all.sh
+        run: bash scripts/build_all.sh
       - name: Run Tests
-        run: ./scripts/run_all.sh
+        run: bash scripts/run_all.sh
