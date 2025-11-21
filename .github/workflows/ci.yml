@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.21"
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Build Project Frank
+        run: ./scripts/build_all.sh
+      - name: Run Tests
+        run: ./scripts/run_all.sh
