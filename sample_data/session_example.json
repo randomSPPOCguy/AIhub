@@ -1,0 +1,19 @@
+{
+  "query": "Tell me about Taylor Swift",
+  "intent": "music",
+  "enrichment": [
+    {
+      "source": "musicbrainz",
+      "summary": "Artist lookup results placeholder"
+    },
+    {
+      "source": "wikidata",
+      "summary": "Entity description placeholder"
+    },
+    {
+      "source": "wikipedia",
+      "summary": "Page summary placeholder"
+    }
+  ],
+  "response": "Project Frank would synthesize a human-like answer summarizing the enrichment data."
+}
