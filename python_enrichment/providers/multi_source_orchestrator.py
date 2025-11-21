@@ -25,10 +25,12 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 try:
     from providers.musicbrainz_complete import search_artist, search_release, search_recording
     from providers.wikipedia_enhanced import get_wikipedia_page
+    from providers.wikipedia_full_content import get_full_wikipedia_article, set_trace_id as set_wiki_full_trace_id
     from structured_logging import log_provider_call
 except ImportError:
     from musicbrainz_complete import search_artist, search_release, search_recording
     from wikipedia_enhanced import get_wikipedia_page
+    from wikipedia_full_content import get_full_wikipedia_article, set_trace_id as set_wiki_full_trace_id
     import structured_logging
     log_provider_call = structured_logging.log_provider_call
 
@@ -55,11 +57,12 @@ async def enrich_artist_multi_source(
         Comprehensive artist profile
     """
     try:
-        from providers import musicbrainz_complete, wikipedia_enhanced
+        from providers import musicbrainz_complete, wikipedia_enhanced, wikipedia_full_content
     except ImportError:
-        import musicbrainz_complete, wikipedia_enhanced
+        import musicbrainz_complete, wikipedia_enhanced, wikipedia_full_content
     musicbrainz_complete.set_trace_id(trace_id)
     wikipedia_enhanced.set_trace_id(trace_id)
+    wikipedia_full_content.set_trace_id(trace_id)
 
     # Step 1: MusicBrainz - PRIMARY SOURCE (canonical data)
     mb_data = await search_artist(artist_name)
@@ -137,25 +140,46 @@ async def enrich_artist_multi_source(
         "sections": ["discography", "metadata", "relationships"]
     })
 
-    # Step 2: Wikipedia - Get detailed biography
+    # Step 2: Wikipedia - Get FULL article content with rich facts
     wikipedia_title = mb_data.get("wikipedia_title")
     if wikipedia_title:
-        wiki_data = await get_wikipedia_page(wikipedia_title)
-        if wiki_data:
-            # Add Wikipedia summary
-            summary = wiki_data.get("summary", "")
-            if summary and summary not in facts:
-                result["facts"].insert(0, summary)  # Put bio first
-                result["sources"].append({
-                    "provider": "wikipedia",
-                    "url": wiki_data.get("url", ""),
-                    "sections": ["summary"]
-                })
+        # Use full-content Wikipedia provider for rich facts
+        wiki_full_data = await get_full_wikipedia_article(wikipedia_title)
+        if wiki_full_data:
+            # Add ALL extracted facts from the full Wikipedia article
+            wiki_facts = wiki_full_data.get("facts", [])
 
-            # Note if discography section exists
-            if wiki_data.get("has_discography"):
-                discog_section = wiki_data.get("discography_section", {})
-                result["sources"][-1]["sections"].append(f"discography ({discog_section.get('title', 'Discography')})")
+            # Insert Wikipedia facts at the beginning (after MusicBrainz facts)
+            # This gives rich context about the artist's career, style, influence, etc.
+            for wiki_fact in wiki_facts:
+                if wiki_fact and wiki_fact not in facts:
+                    facts.insert(len([f for f in facts if "is a" in f or "From" in f or "Genres:" in f]), wiki_fact)
+
+            # Track which sections we extracted from
+            wiki_sections = list(wiki_full_data.get("sections", {}).keys())
+            relevant_sections = [s for s in wiki_sections if s in [
+                "introduction", "background", "recording", "composition",
+                "reception", "critical reception", "legacy", "awards"
+            ]]
+
+            result["sources"].append({
+                "provider": "wikipedia_full_article",
+                "url": wiki_full_data.get("url", ""),
+                "sections": relevant_sections if relevant_sections else ["full_article"],
+                "fact_count": len(wiki_facts)
+            })
+        else:
+            # Fallback to basic Wikipedia if full content fails
+            wiki_data = await get_wikipedia_page(wikipedia_title)
+            if wiki_data:
+                summary = wiki_data.get("summary", "")
+                if summary and summary not in facts:
+                    result["facts"].insert(0, summary)
+                    result["sources"].append({
+                        "provider": "wikipedia",
+                        "url": wiki_data.get("url", ""),
+                        "sections": ["summary"]
+                    })
 
     # Step 3: Additional metadata from MusicBrainz
     result["metadata"] = {
@@ -208,11 +232,12 @@ async def enrich_album_multi_source(
         Comprehensive album data
     """
     try:
-        from providers import musicbrainz_complete, wikipedia_enhanced
+        from providers import musicbrainz_complete, wikipedia_enhanced, wikipedia_full_content
     except ImportError:
-        import musicbrainz_complete, wikipedia_enhanced
+        import musicbrainz_complete, wikipedia_enhanced, wikipedia_full_content
     musicbrainz_complete.set_trace_id(trace_id)
     wikipedia_enhanced.set_trace_id(trace_id)
+    wikipedia_full_content.set_trace_id(trace_id)
 
     # Step 1: MusicBrainz - PRIMARY SOURCE
     mb_data = await search_release(album_title, artist_name)
@@ -267,21 +292,45 @@ async def enrich_album_multi_source(
         "sections": ["tracklist", "release_info", "metadata"]
     })
 
-    # Step 2: Wikipedia - Album article
+    # Step 2: Wikipedia - Get FULL album article with rich facts
     if mb_data["urls"].get("wikipedia"):
         wiki_url = mb_data["urls"]["wikipedia"]
         if "/wiki/" in wiki_url:
             wiki_title = wiki_url.split("/wiki/")[-1].replace("_", " ")
-            wiki_data = await get_wikipedia_page(wiki_title)
-            if wiki_data:
-                summary = wiki_data.get("summary", "")
-                if summary:
-                    result["facts"].insert(0, summary)
-                    result["sources"].append({
-                        "provider": "wikipedia",
-                        "url": wiki_url,
-                        "sections": ["summary", "critical_reception"]
-                    })
+
+            # Use full-content Wikipedia provider for album details
+            wiki_full_data = await get_full_wikipedia_article(wiki_title)
+            if wiki_full_data:
+                # Add ALL extracted facts from the album Wikipedia article
+                wiki_facts = wiki_full_data.get("facts", [])
+                for wiki_fact in wiki_facts:
+                    if wiki_fact and wiki_fact not in facts:
+                        facts.insert(0, wiki_fact)
+
+                wiki_sections = list(wiki_full_data.get("sections", {}).keys())
+                relevant_sections = [s for s in wiki_sections if s in [
+                    "introduction", "background", "recording", "composition",
+                    "reception", "critical reception", "commercial performance", "track listing"
+                ]]
+
+                result["sources"].append({
+                    "provider": "wikipedia_full_article",
+                    "url": wiki_url,
+                    "sections": relevant_sections if relevant_sections else ["full_article"],
+                    "fact_count": len(wiki_facts)
+                })
+            else:
+                # Fallback to basic Wikipedia
+                wiki_data = await get_wikipedia_page(wiki_title)
+                if wiki_data:
+                    summary = wiki_data.get("summary", "")
+                    if summary:
+                        result["facts"].insert(0, summary)
+                        result["sources"].append({
+                            "provider": "wikipedia",
+                            "url": wiki_url,
+                            "sections": ["summary"]
+                        })
 
     # Include full tracklist
     result["tracklist"] = mb_data.get("tracks", [])

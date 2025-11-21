@@ -18,7 +18,9 @@
       "Bash(timeout:*)",
       "Bash(Get-Process python -ErrorAction SilentlyContinue)",
       "Bash(Where-Object { $_ainWindowTitle -eq '' })",
-      "Bash(Stop-Process -Force)"
+      "Bash(Stop-Process -Force)",
+      "Bash(powershell -Command \".\\start.ps1\")",
+      "Bash(git rm:*)"
     ],
     "deny": [],
     "ask": []

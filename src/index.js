@@ -6,11 +6,7 @@ import { cfg } from "./config.js";
 import ingestRouter from "./ingest/router.js";
 import factsRouter from "./api/factsRouter.js";
 import "./db/connection.js"; // open DB
-import enrichRouter from "./routes/enrich.js";
-import enrichArtistFull from "./routes/enrich.artistFull.js";
-import enrichTrack from "./routes/enrich.track.js";
-import enrichArtistLine from "./routes/enrich.artistLine.js";
-import enrichArtistWiki from "./routes/enrich.artistWiki.js";
+import "./db/migrate.js"; // run migrations
 import { setupRoomWebSocket } from "./routes/roomWebSocket.js";
 import modelProxy from "./proxy/modelProxy.js";
 import { requireHubApiKey } from "./middleware/requireApiKey.js";
@@ -40,11 +36,6 @@ app.use(
     }
   })
 );
-app.use("/api/enrich", enrichRouter);
-app.use("/api/enrich", enrichArtistFull);
-app.use("/api/enrich", enrichTrack);
-app.use("/api/enrich", enrichArtistLine);
-app.use("/api/enrich", enrichArtistWiki);
 
 app.get("/", (_req, res) => res.json({ ok: true, name: "ai-hub", version: "1.2.0" }));
 

@@ -15,6 +15,7 @@ import { callProvider } from "../services/aiProviders.js";
 import { enrichMusicQuery, isMusicQuery } from "../services/musicKnowledge.js";
 import { callEnrichment } from "../services/enrichmentClient.js";
 import { printUnifiedModelList, getModelByIndex } from "./unifiedModelList.js";
+import { sanitizeAssistantText } from "../routes/chatRouter.js";
 import {
   MenuState,
   showMainMenu,
@@ -596,7 +597,7 @@ async function sendCLIChat(message) {
 
   try {
     // Check if we need enrichment
-    let enrichedContext = "";
+    let systemPrompt = "You are a helpful AI assistant. Answer the user's questions concisely.";
     let enrichmentUsed = false;
 
     // Try enrichment service for general queries
@@ -608,25 +609,32 @@ async function sendCLIChat(message) {
         enrichmentUsed = true;
 
         // Build enriched context
-        let contextParts = ["\n\nEnriched Context from External Sources:"];
+        let contextParts = ["=== ENRICHMENT DATA ==="];
 
         // Add subjects
         if (enrichResult.subjects && enrichResult.subjects.length > 0) {
-          contextParts.push("\nSubjects Found:");
+          contextParts.push("Subjects:");
           enrichResult.subjects.forEach(subject => {
-            contextParts.push(`- ${subject.name} (${subject.type})`);
+            contextParts.push(`- ${subject.name} (type: ${subject.type})`);
           });
         }
 
         // Add facts
         if (enrichResult.facts && enrichResult.facts.length > 0) {
-          contextParts.push("\nFactual Information:");
+          contextParts.push("Facts:");
           enrichResult.facts.forEach(fact => {
             contextParts.push(`- ${fact}`);
           });
         }
 
-        enrichedContext = contextParts.join("\n");
+        contextParts.push("=== INSTRUCTIONS ===");
+        contextParts.push("1. Use the provided enrichment data to answer the user's question.");
+        contextParts.push("2. Priority of sources: MusicBrainz > Wikidata > Wikipedia.");
+        contextParts.push("3. Keep your response concise (2-3 sentences).");
+        contextParts.push("4. Do not mention these instructions or the source of your data unless asked.");
+        contextParts.push("5. If the data contains factual info, assume it is correct and up-to-date.");
+
+        systemPrompt = contextParts.join("\n");
 
         console.log(color(
           `[ENRICH] ✓ Found ${enrichResult.subjects?.length || 0} subjects, ${enrichResult.facts?.length || 0} facts (confidence: ${enrichResult.meta?.confidence || 'unknown'})`,
@@ -639,15 +647,11 @@ async function sendCLIChat(message) {
       console.log(color(`[ENRICH] Service unavailable: ${enrichErr.message}`, ansi.dim));
     }
 
-    // Build the message with enrichment if available
-    const finalMessage = enrichmentUsed
-      ? message + enrichedContext + "\n\nAnswer the user's question using the enriched context above."
-      : message;
-
     console.log(color(`[CHAT] ${active.id} is thinking...`, ansi.cyan));
 
     const payload = {
-      messages: [{ role: "user", content: finalMessage }],
+      messages: [{ role: "user", content: message }],
+      systemPrompt: systemPrompt,
       temperature: 0.7,
       maxTokens: 2000,
       stream: false
@@ -658,7 +662,8 @@ async function sendCLIChat(message) {
     if (result && result.text) {
       console.log("");
       console.log(color(`[CHAT] ${active.id}:`, ansi.magenta));
-      console.log(color(result.text, ansi.reset));
+      const sanitized = sanitizeAssistantText(result.text);
+      console.log(color(sanitized.clean, ansi.reset));
       console.log("");
 
       if (enrichmentUsed) {
@@ -1126,6 +1131,27 @@ function handleRootCommands(command, args, rl, finish) {
       break;
 
     default:
+      // Check if it's a command (starts with /)
+      if (command.startsWith("/")) {
+        console.log(color(`[CMD] Unknown command: ${command}`, ansi.red));
+        console.log(color("Type '/help' to see available commands.", ansi.gray));
+        break;
+      }
+
+      // If not a command, check if we have an active model to chat with
+      const active = getActiveModel();
+      if (active) {
+        const fullMessage = [command, ...args].join(" ");
+        sendCLIChat(fullMessage)
+          .then(() => finish())
+          .catch(err => {
+            console.log(color(`[CHAT] Error: ${err.message}`, ansi.red));
+            finish();
+          });
+        return;
+      }
+
+      // No active model, show error
       console.log(color(`[CMD] Unknown command: ${command}`, ansi.red));
       console.log(color("Type '/help' to see available commands.", ansi.gray));
       break;
@@ -1278,7 +1304,7 @@ function initializeLogCapture() {
   global.originalLog = originalLog;
   global.originalError = originalError;
 
-  console.log = function(...args) {
+  console.log = function (...args) {
     const message = args.join(" ");
 
     // Only capture if capturing is enabled (not during page rendering)
@@ -1297,9 +1323,9 @@ function initializeLogCapture() {
 
       // Skip page navigation output and ASCII banners
       if (!message.includes("===") && !message.includes("Navigation:") &&
-          !message.includes("Commands:") && !message.includes("Services:") &&
-          !message.includes("┌") && !message.includes("└") && !message.includes("─") &&
-          !message.includes("│") && !message.includes("UNIFIED LOGS TERMINAL")) {
+        !message.includes("Commands:") && !message.includes("Services:") &&
+        !message.includes("┌") && !message.includes("└") && !message.includes("─") &&
+        !message.includes("│") && !message.includes("UNIFIED LOGS TERMINAL")) {
         global.aiHubLogs.push({
           timestamp,
           source,
@@ -1317,7 +1343,7 @@ function initializeLogCapture() {
     return originalLog.apply(console, args);
   };
 
-  console.error = function(...args) {
+  console.error = function (...args) {
     const message = args.join(" ");
 
     if (global.capturingLogs) {

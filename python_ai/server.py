@@ -36,15 +36,17 @@ def get_execution_providers():
     available = ort.get_available_providers()
     providers = []
 
-    # Prefer DirectML on Windows (best GPU support without CUDA setup)
-    if 'DmlExecutionProvider' in available:
-        providers.append('DmlExecutionProvider')
-        logger.info("DirectML GPU acceleration available")
-
-    # CUDA if available
+    # CUDA (User Requested Priority)
     if 'CUDAExecutionProvider' in available:
         providers.append('CUDAExecutionProvider')
         logger.info("CUDA GPU acceleration available")
+    else:
+        logger.warning("CUDA Execution Provider NOT found. Running on CPU/DirectML. Ensure onnxruntime-genai-cuda is installed.")
+        
+        # Fallback to DirectML on Windows if CUDA is missing
+        if 'DmlExecutionProvider' in available:
+            providers.append('DmlExecutionProvider')
+            logger.info("DirectML GPU acceleration available")
 
     # Fallback to CPU
     providers.append('CPUExecutionProvider')

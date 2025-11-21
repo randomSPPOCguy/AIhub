@@ -5,8 +5,8 @@ uvicorn[standard]==0.29.0
 # - Windows (recommended): onnxruntime-directml
 # - Linux/CUDA: onnxruntime-gpu
 # DO NOT install base 'onnxruntime' as it conflicts with GPU versions
-onnxruntime-directml>=1.23.0
-onnxruntime-genai>=0.11.0
-# Note: onnxruntime-genai-cuda is optional for CUDA systems
+# GPU acceleration: CUDA (User Requested)
+onnxruntime-gpu>=1.17.0
+onnxruntime-genai-cuda>=0.1.0
 onnx>=1.16.0
 python-dotenv==1.0.1

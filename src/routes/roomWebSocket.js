@@ -7,8 +7,6 @@
  */
 
 import { WebSocketServer } from "ws";
-import { getSongInfo, getAlbumInfo, getArtistInfo } from "../services/wikipedia.js";
-import { mbSearchRecording, sleep } from "../services/musicbrainz.js";
 import { logger } from "../utils/logger.js";
 
 const wsInfo = (message, meta) => logger.info(`[ROOM_WS] ${message}`, meta);
@@ -18,19 +16,15 @@ const wsDebug = (message, meta) => logger.debug(`[ROOM_WS] ${message}`, meta);
 
 /**
  * Quick enrichment helper for WebSocket
- * Returns basic track info from Wikipedia
+ * Returns basic track info
+ * Note: For full enrichment, use /hub/chat endpoint
  */
 async function enrichTrack(title, artist) {
-  try {
-    const songInfo = await getSongInfo(title, artist);
-    return {
-      song: songInfo,
-      formatted: songInfo ? formatTrackInfo(songInfo) : "No info found."
-    };
-  } catch (error) {
-    wsWarn(`Error enriching track: ${error.message}`);
-    return { formatted: "Error fetching track info." };
-  }
+  // Simplified - external bots should use /hub/chat for full enrichment
+  return {
+    song: { title, artist },
+    formatted: `${title} by ${artist}`
+  };
 }
 
 /**

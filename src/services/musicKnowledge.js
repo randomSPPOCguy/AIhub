@@ -1,9 +1,7 @@
 // src/services/musicKnowledge.js
-// Service to enrich music-related queries with MusicBrainz and Wikipedia data
+// Service to classify music-related queries
+// NOTE: Actual enrichment now handled by Python enrichment service
 
-import { getArtistInfo, getSongInfo, getAlbumInfo } from "./wikipedia.enhanced.js";
-import { getMusicBrainzDataEnhanced } from "./musicbrainz.enhanced.js";
-import { mbSearchArtistByName } from "./musicbrainz.js";
 import { logger } from "../utils/logger.js";
 
 const musicInfo = (message, meta) => logger.info(`[MUSIC] ${message}`, meta);
@@ -235,147 +233,31 @@ function extractMusicEntities(message, metadata = {}) {
   return entities;
 }
 
+/**
+ * DEPRECATED: Now handled by Python enrichment service
+ * Kept as stub for backwards compatibility
+ */
 async function resolveArtistFromKeywords(entities) {
-  if (!entities || entities.artists.length) return null;
-  const phraseSet = new Set([
-    ...(entities.keywords?.wikipedia || []),
-    ...(entities.keywords?.musicbrainz || [])
-  ]);
-  const candidates = Array.from(phraseSet)
-    .map((phrase) => phrase.replace(/[^a-z0-9\s]/gi, " ").trim())
-    .filter((phrase) => phrase.split(/\s+/).length >= 2)
-    .filter((phrase) => !COMMON_NON_ARTISTS.has(phrase));
-
-  candidates.sort((a, b) => b.length - a.length);
-
-  const prioritizedExpressions = [];
-  const noisyExpressions = [];
-  for (const candidate of candidates) {
-    const tokens = candidate.split(/\s+/).filter(Boolean);
-    const hasNoise = tokens.some((token) => PHRASE_NOISE_WORDS.has(token));
-    if (hasNoise) {
-      noisyExpressions.push(candidate);
-    } else {
-      prioritizedExpressions.push(candidate);
-    }
-  }
-
-  const sortedCandidates = [...prioritizedExpressions, ...noisyExpressions];
-
-  let attempts = 0;
-  for (const candidate of sortedCandidates) {
-    if (attempts >= 3) break;
-    if (!candidate) continue;
-    attempts++;
-    try {
-      const result = await mbSearchArtistByName(candidate, 1);
-      if (result && result.score >= 50) {
-        entities.artists.push(result.name.toLowerCase());
-        entities.queryType = entities.queryType || "artist";
-        musicDebug("Resolved artist via MusicBrainz keywords", { artist: result.name });
-        return result.name;
-      }
-    } catch (err) {
-      musicWarn("Error resolving artist from keywords", {
-        candidate,
-        error: err?.message || String(err)
-      });
-    }
-  }
+  // No-op: Python enrichment service handles this now
   return null;
 }
 
 /**
- * Fetch artist information from Wikipedia and MusicBrainz
+ * DEPRECATED: Now handled by Python enrichment service
+ * Kept as stub for backwards compatibility
  */
 async function fetchArtistFacts(artistName) {
-  if (!artistName) return null;
-
-  try {
-    // Try Wikipedia first (faster, more comprehensive)
-    const wikiInfo = await getArtistInfo(artistName);
-
-    if (wikiInfo && wikiInfo.summary) {
-      return {
-        source: "wikipedia",
-        artist: artistName,
-        summary: wikiInfo.summary,
-        genres: wikiInfo.genresArray || [], // Use genresArray instead of genres (which is a string)
-        activeYears: wikiInfo.activeYears || null,
-        members: wikiInfo.members || null,
-        origin: wikiInfo.origin || null,
-        labels: wikiInfo.labels || null,
-        description: wikiInfo.description || null
-      };
-    }
-
-    // Fallback to MusicBrainz artist search
-    const mbArtist = await mbSearchArtistByName(artistName);
-    if (mbArtist) {
-      return {
-        source: "musicbrainz",
-        artist: artistName,
-        mbid: mbArtist.id,
-        type: mbArtist.type,
-        country: mbArtist.country,
-        lifeSpan: mbArtist["life-span"],
-        disambiguation: mbArtist.disambiguation
-      };
-    }
-
-    return null;
-  } catch (error) {
-    knowledgeError("Error fetching artist facts", {
-      artist: artistName,
-      error: error?.message || String(error)
-    });
-    return null;
-  }
+  // No-op: Python enrichment service handles this now
+  return null;
 }
 
 /**
- * Fetch song information
+ * DEPRECATED: Now handled by Python enrichment service
+ * Kept as stub for backwards compatibility
  */
 async function fetchSongFacts(songTitle, artistName = null) {
-  if (!songTitle) return null;
-
-  try {
-    // If we have both title and artist, try MusicBrainz enhanced search
-    if (artistName) {
-      const mbData = await getMusicBrainzDataEnhanced(songTitle, artistName);
-      if (mbData && mbData.recording) {
-        return {
-          source: "musicbrainz",
-          title: songTitle,
-          artist: artistName,
-          duration: mbData.recording.lengthFormatted || null,
-          releaseDate: mbData.releaseGroup?.firstReleaseDate || null,
-          album: mbData.releaseGroup?.title || null,
-          genres: mbData.recording.genres?.map(g => g.name) || []
-        };
-      }
-    }
-
-    // Try Wikipedia (works well for popular songs)
-    const wikiInfo = await getSongInfo(songTitle, artistName);
-    if (wikiInfo && wikiInfo.summary) {
-      return {
-        source: "wikipedia",
-        title: songTitle,
-        artist: artistName,
-        summary: wikiInfo.summary,
-        releaseDate: wikiInfo.released || null,
-        album: wikiInfo.album || null,
-        genre: wikiInfo.genre || null,
-        length: wikiInfo.length || null
-      };
-    }
-
-    return null;
-  } catch (error) {
-    knowledgeError("Error fetching song facts", { error: error?.message || String(error) });
-    return null;
-  }
+  // No-op: Python enrichment service handles this now
+  return null;
 }
 
 /**

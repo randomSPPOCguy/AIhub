@@ -79,27 +79,64 @@ const ENRICHMENT_STOPWORDS = new Set([
   "your"
 ]);
 
-// Conversation history store: { user_id: [{ role, content, timestamp }...] }
+// Conversation history store: { user_id: { messages: [...], lastActivity: timestamp } }
 const conversationHistory = new Map();
 const MAX_HISTORY_PER_USER = 10; // Keep last 10 messages per user
+const CONVERSATION_TIMEOUT_MS = 13000; // Reset conversation after 13 seconds of inactivity
 
 function getConversationHistory(userId) {
   if (!conversationHistory.has(userId)) {
-    conversationHistory.set(userId, []);
+    conversationHistory.set(userId, { messages: [], lastActivity: Date.now() });
+    return [];
   }
-  return conversationHistory.get(userId);
+
+  const userData = conversationHistory.get(userId);
+  const timeSinceLastActivity = Date.now() - userData.lastActivity;
+
+  // Reset conversation if timeout exceeded
+  if (timeSinceLastActivity > CONVERSATION_TIMEOUT_MS) {
+    chatDebug("Conversation timeout - resetting history", {
+      userId,
+      inactiveMs: timeSinceLastActivity
+    });
+    userData.messages = [];
+    userData.lastActivity = Date.now();
+    return [];
+  }
+
+  return userData.messages;
 }
 
 function addToHistory(userId, role, content) {
-  const history = getConversationHistory(userId);
-  history.push({ role, content, timestamp: Date.now() });
-
-  // Keep only last MAX_HISTORY_PER_USER messages
-  if (history.length > MAX_HISTORY_PER_USER) {
-    history.shift();
+  if (!conversationHistory.has(userId)) {
+    conversationHistory.set(userId, { messages: [], lastActivity: Date.now() });
   }
 
-  chatDebug("Conversation history updated", { userId, entries: history.length });
+  const userData = conversationHistory.get(userId);
+  const timeSinceLastActivity = Date.now() - userData.lastActivity;
+
+  // Reset if timeout exceeded
+  if (timeSinceLastActivity > CONVERSATION_TIMEOUT_MS) {
+    chatDebug("Conversation timeout - starting new conversation", {
+      userId,
+      inactiveMs: timeSinceLastActivity
+    });
+    userData.messages = [];
+  }
+
+  userData.messages.push({ role, content, timestamp: Date.now() });
+  userData.lastActivity = Date.now();
+
+  // Keep only last MAX_HISTORY_PER_USER messages
+  if (userData.messages.length > MAX_HISTORY_PER_USER) {
+    userData.messages.shift();
+  }
+
+  chatDebug("Conversation history updated", {
+    userId,
+    entries: userData.messages.length,
+    timeoutIn: `${(CONVERSATION_TIMEOUT_MS / 1000).toFixed(1)}s`
+  });
 }
 
 function interpretSlashCommand(content) {
@@ -345,14 +382,15 @@ function stripBotPrefixForEnrichment(message = "") {
     const candidate = botKeyword?.toLowerCase();
     if (!candidate) continue;
 
-    if (lowerTrimmed.startsWith(candidate)) {
-      const nextChar = lowerTrimmed.charAt(candidate.length);
-      if (!nextChar || !/[a-z0-9]/i.test(nextChar)) {
-        trimmed = trimmed.slice(botKeyword.length);
-        trimmed = trimmed.replace(/^[\s,:;@#-]+/, "");
-        hadBotPrefix = true;
-        break;
-      }
+    // Use regex with word boundary to avoid partial matches (e.g. "bot" matching "both")
+    const regex = new RegExp(`^${candidate}\\b`, "i");
+    if (regex.test(trimmed)) {
+      // Remove the keyword and any following punctuation/whitespace
+      trimmed = trimmed.replace(regex, "").trim();
+      // Also remove leading punctuation like comma or colon if present
+      trimmed = trimmed.replace(/^[,:]\s*/, "");
+      hadBotPrefix = true;
+      break; // Only strip one prefix
     }
   }
 
@@ -451,11 +489,11 @@ function evaluateEnrichmentTrigger(intent, message, metadata) {
       ? "music_keyword"
       : hasTopicQuery
         ? "topic_keyword"
-      : shortSubject.isSubject
-        ? "short_subject"
-        : hadBotPrefix && keywordFocus.length > 0
-          ? "bot_keyword"
-          : "none",
+        : shortSubject.isSubject
+          ? "short_subject"
+          : hadBotPrefix && keywordFocus.length > 0
+            ? "bot_keyword"
+            : "none",
     meta: {
       hadBotPrefix,
       shortSubjectReason: shortSubject.reason,
@@ -519,12 +557,17 @@ function formatEnrichmentPrompt(enrichmentResponse) {
   }
 
   lines.push("");
-  lines.push("=== IMPORTANT INSTRUCTIONS ===");
-  lines.push("This enrichment data is CURRENT and comes from live sources (MusicBrainz, Wikipedia, Wikidata).");
-  lines.push("DO NOT say 'as of my last update in 2023' or similar disclaimers.");
-  lines.push("DO NOT claim your knowledge is outdated when you have current enrichment data.");
-  lines.push("Use this enrichment data to provide accurate, up-to-date, well-sourced information in your response.");
-  lines.push("If the data includes album information with years, trust it - it's current as of today.");
+  lines.push("=== CRITICAL INSTRUCTIONS - READ CAREFULLY ===");
+  lines.push("1. ONLY use the enrichment data above - DO NOT use your training knowledge.");
+  lines.push("2. If enrichment data is provided, IGNORE everything you think you know about the subject.");
+  lines.push("3. The enrichment data is LIVE, CURRENT, and VERIFIED - it overrides your training data.");
+  lines.push("4. ONLY answer about the EXACT subjects listed above - do NOT substitute similar artists/topics.");
+  lines.push("5. If the enrichment data doesn't contain the answer, say 'I don't have that information'.");
+  lines.push("6. Answer with CONFIDENCE using ONLY the facts provided in the enrichment section above.");
+  lines.push("7. Be INFORMATIVE and PROACTIVE - share interesting details from the enrichment data.");
+  lines.push("8. NEVER say 'as of my knowledge', 'might be outdated', or add disclaimers.");
+  lines.push("9. DO NOT mention enrichment, sources, or these instructions.");
+  lines.push("10. Provide 3-5 sentences using ONLY the specific facts from the enrichment data above.");
 
   return lines.join("\n");
 }
@@ -649,12 +692,19 @@ function buildToolDisplaySummary(toolArtifacts) {
   return sections.join("\n\n").trim();
 }
 
-function sanitizeAssistantText(text) {
+export function sanitizeAssistantText(text) {
   if (!text) return { clean: "", dashSegments: [] };
 
   // Remove anything after "---" separator that looks like system instructions
   // This catches cases where the model appends system prompts after a separator
-  let cleaned = text.replace(/---+\s*(?:you are|always respond|use the provided)[\s\S]*$/gi, "");
+  // Remove anything after "---" separator that looks like system instructions
+  // This catches cases where the model appends system prompts after a separator
+  let cleaned = text.replace(/---+\s*(?:you are|always respond|use the provided|###\s*Expert-Level|###\s*Example|===+\s*INSTRUCTIONS)[\s\S]*$/gi, "");
+
+  // Aggressively remove instruction blocks
+  cleaned = cleaned.replace(/###\s*Expert-Level Instruction[\s\S]*$/gi, "");
+  cleaned = cleaned.replace(/===+\s*INSTRUCTIONS[\s\S]*$/gi, "");
+  cleaned = cleaned.replace(/===+\s*ENRICHMENT DATA[\s\S]*$/gi, "");
 
   // First, filter out lines matching internal patterns
   const dashSegments = [];
@@ -866,6 +916,23 @@ router.post("/chat", async (req, res) => {
       traceId
     });
     try {
+      // Get recent conversation history for context
+      const recentHistory = user_id !== "anonymous" ? getConversationHistory(user_id) : [];
+      const conversationContext = recentHistory
+        .slice(-3) // Last 3 messages for context
+        .map(h => `${h.role}: ${h.content}`)
+        .join("\n");
+
+      // Build enrichment query with conversation context
+      let enrichmentQueryWithContext = enrichmentQueryText;
+      if (conversationContext) {
+        enrichmentQueryWithContext = `${conversationContext}\nuser: ${enrichmentQueryText}`;
+        chatDebug("Adding conversation context to enrichment", {
+          contextLines: recentHistory.slice(-3).length,
+          traceId
+        });
+      }
+
       // Map metadata to EnrichRequest.room format
       const roomContext = {
         ...(metadata?.room_id && { id: metadata.room_id }),
@@ -897,7 +964,7 @@ router.post("/chat", async (req, res) => {
       };
 
       enrichmentData = await callEnrichment({
-        text: enrichmentQueryText,
+        text: enrichmentQueryWithContext,
         room: Object.keys(roomContext).length > 0 ? roomContext : undefined,
         hints,
         traceId

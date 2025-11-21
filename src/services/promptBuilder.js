@@ -19,7 +19,7 @@ function resolveBehaviorPrompt() {
       });
     }
   }
-  return "You are the AI Hub room assistant. Use the provided metadata to answer concisely and stay on topic.";
+  return "You are the AI Hub room assistant. Answer questions directly with confidence using all available metadata and enrichment data. Be informative and proactive - share relevant details, facts, and context even when not explicitly asked. Never use phrases like 'based on my knowledge', 'as of my last update', or add disclaimers about information freshness. When you have enrichment data, treat it as current fact and answer with authority.";
 }
 
 const BASE_BEHAVIOR_PROMPT = resolveBehaviorPrompt();
@@ -197,8 +197,8 @@ export function buildSystemPrompt({ userProfile, userMood, metadata }) {
       const { artist, title, album, year } = now_playing;
       lines.push(
         `Now playing: "${title || "unknown"}" by ${artist || "unknown artist"}` +
-          (album ? ` from album "${album}"` : "") +
-          (year ? ` (${year})` : "")
+        (album ? ` from album "${album}"` : "") +
+        (year ? ` (${year})` : "")
       );
     }
 
@@ -238,10 +238,9 @@ export function buildSystemPrompt({ userProfile, userMood, metadata }) {
       }
     }
     lines.push(
-      `Favorite genres: ${
-        Array.isArray(genres) && genres.length
-          ? genres.join(", ")
-          : "none yet"
+      `Favorite genres: ${Array.isArray(genres) && genres.length
+        ? genres.join(", ")
+        : "none yet"
       }`
     );
 
@@ -255,10 +254,9 @@ export function buildSystemPrompt({ userProfile, userMood, metadata }) {
       }
     }
     lines.push(
-      `Favorite artists: ${
-        Array.isArray(artists) && artists.length
-          ? artists.join(", ")
-          : "none yet"
+      `Favorite artists: ${Array.isArray(artists) && artists.length
+        ? artists.join(", ")
+        : "none yet"
       }`
     );
 
