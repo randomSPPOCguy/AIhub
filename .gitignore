@@ -1,7 +1,221 @@
+# ============================================================================
+# PROJECT FRANK - .gitignore
+# ============================================================================
+
+# ====================
+# Local Agent Files (Not for GitHub)
+# ====================
+ROADMAP.md
+
+# ====================
+# Build Artifacts
+# ====================
+
+# Rust
 /target
-*.pyc
-__pycache__/
-*.sqlite3
 rust/target/
-.idea
+rust/Cargo.lock
+*.rlib
+*.pdb
+
+# Go
+go/*.a
+go/*.h
+go/*.lib
+go/libfrankgo.a
+go/libfrankgo.h
+*.exe
+*.dll
+*.so
+*.dylib
+
+# C++
+cpp/*.o
+cpp/*.obj
+*.lib
+*.a
+
+# General build
+/build
+/dist
+*.out
+
+# ====================
+# Python
+# ====================
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+.Python
+
+# Python distribution
+*.egg-info/
+.eggs/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# PyInstaller
+*.manifest
+*.spec
+
+# ====================
+# AI Models & Large Files
+# ====================
+
+# HuggingFace cache and downloaded models
+.cache/
+models/
+*.bin
+*.safetensors
+*.onnx
+*.gguf
+*.h5
+*.pb
+*.tflite
+*.ckpt
+*.pt
+*.pth
+
+# Model checkpoints
+checkpoints/
+weights/
+
+# ====================
+# Database & Cache
+# ====================
+*.sqlite3
+*.db
+*.sqlite
+cache.db
+enrichment.db
+cache.sqlite3
+
+# ====================
+# Configuration & Secrets
+# ====================
+config.env
+.env
+.env.local
+*.key
+*.pem
+*.crt
+secrets/
+.secrets
+
+# User config (except defaults)
+config.json
+*.local.json
+
+# ====================
+# IDE & Editors
+# ====================
+.idea/
 .vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+.project
+.classpath
+.settings/
+
+# ====================
+# Operating System
+# ====================
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Linux
+*~
+.directory
+
+# ====================
+# Logs & Temporary Files
+# ====================
+*.log
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+logs/
+tmp/
+temp/
+
+# ====================
+# Test & Coverage
+# ====================
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+*.cover
+coverage.xml
+
+# ====================
+# Documentation Build
+# ====================
+docs/_build/
+docs/.doctrees/
+site/
+
+# ====================
+# Dependency Directories
+# ====================
+node_modules/
+vendor/
+
+# ====================
+# Backup Files
+# ====================
+*.backup
+*.bk
+*.old
+
+# ====================
+# Compiled Dynamic Libraries
+# ====================
+*.so
+*.dll
+*.dylib
+
+# ====================
+# Package Files
+# ====================
+*.tar.gz
+*.zip
+*.7z
+*.rar
+
+# ====================
+# Keep These Files
+# ====================
+!.gitignore
+!.github/
+!rust/Cargo.toml
+!go/go.mod

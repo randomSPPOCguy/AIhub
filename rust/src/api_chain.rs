@@ -17,12 +17,12 @@ impl PythonBridge {
                 module: module.into(),
             })
         })
-        .map_err(|err| err.into())
+        .map_err(|err: PyErr| err.into())
     }
 
     pub fn generate_response(&self, query: &str, enrichment_chunks: &[String]) -> Result<String> {
         Python::with_gil(|py| {
-            let module = self.module.bind(py);
+            let module = self.module.as_ref(py);
             let py_list = PyList::new(py, enrichment_chunks);
             let output = module
                 .getattr("generate_response")?
@@ -33,7 +33,7 @@ impl PythonBridge {
 
     pub fn enrich_entity(&self, entity: &str, entity_type: &str) -> Result<Value> {
         Python::with_gil(|py| {
-            let module = self.module.bind(py);
+            let module = self.module.as_ref(py);
             let py_value = module
                 .getattr("enrich_entity")?
                 .call1((entity, entity_type))?;

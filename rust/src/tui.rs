@@ -79,7 +79,7 @@ fn shutdown_terminal(mut terminal: Terminal<CrosstermBackend<Stdout>>) -> Result
     Ok(())
 }
 
-fn draw(frame: &mut ratatui::Frame<CrosstermBackend<Stdout>>, ui_state: &UiState) {
+fn draw(frame: &mut ratatui::Frame, ui_state: &UiState) {
     let layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Min(3), Constraint::Length(3)])

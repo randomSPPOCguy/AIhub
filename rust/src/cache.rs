@@ -43,17 +43,22 @@ impl CacheStore {
 
     pub fn get(&self, key: &str) -> Result<Option<CacheRecord>> {
         let now = Utc::now();
-        let mut guard = self.conn.lock();
+        let guard = self.conn.lock();
         let record = guard
             .query_row(
                 "SELECT payload FROM enrichment_cache WHERE key = ?1 AND expires_at > ?2",
                 params![key, now.timestamp()],
                 |row| {
                     let payload: String = row.get(0)?;
+                    let parsed = serde_json::from_str(&payload)
+                        .map_err(|e| rusqlite::Error::FromSqlConversionFailure(
+                            0,
+                            rusqlite::types::Type::Text,
+                            Box::new(e)
+                        ))?;
                     Ok(CacheRecord {
                         key: key.to_owned(),
-                        payload: serde_json::from_str(&payload)
-                            .context("failed parsing cached payload")?,
+                        payload: parsed,
                     })
                 },
             )
@@ -63,7 +68,7 @@ impl CacheStore {
 
     pub fn set<V: Serialize>(&self, key: &str, payload: &V, ttl: Option<Duration>) -> Result<()> {
         let expires_at = Utc::now() + ttl.unwrap_or(self.default_ttl);
-        let mut guard = self.conn.lock();
+        let guard = self.conn.lock();
         guard.execute(
             "REPLACE INTO enrichment_cache (key, payload, expires_at) VALUES (?1, ?2, ?3)",
             params![key, serde_json::to_string(payload)?, expires_at.timestamp()],
@@ -72,7 +77,7 @@ impl CacheStore {
     }
 
     pub fn purge_expired(&self) -> Result<()> {
-        let mut guard = self.conn.lock();
+        let guard = self.conn.lock();
         guard.execute(
             "DELETE FROM enrichment_cache WHERE expires_at <= ?1",
             params![Utc::now().timestamp()],
