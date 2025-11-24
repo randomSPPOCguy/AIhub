@@ -1,9 +1,28 @@
-$ErrorActionPreference = "Stop"
-$Root = Split-Path -Parent $MyInvocation.MyCommand.Path | Split-Path -Parent
-$Env:FRANK_PYTHON_PATH = Join-Path $Root "python"
-$Env:FRANK_CACHE_PATH = Join-Path $Root "cache.sqlite3"
+# run_all.ps1 - Production startup (no tests)
+# For testing, use test_all.ps1 instead
 
-Push-Location (Join-Path $Root "rust")
-cargo test
-cargo run --bin project-frank
+$ROOT_DIR = Split-Path -Parent $PSScriptRoot
+
+$env:FRANK_PYTHON_PATH = Join-Path $ROOT_DIR "python"
+$env:FRANK_CACHE_PATH = Join-Path $ROOT_DIR "cache.sqlite3"
+
+Push-Location (Join-Path $ROOT_DIR "rust")
+
+Write-Host "Building Project Frank..." -ForegroundColor Cyan
+
+# Build first to ensure all compilation completes before running
+cargo build --release
+
+if ($LASTEXITCODE -eq 0) {
+    Write-Host "Starting Project Frank..." -ForegroundColor Green
+
+    # Run the pre-built binary
+    .\target\release\project-frank.exe
+} else {
+    Write-Host "Build failed!" -ForegroundColor Red
+    Pop-Location
+    exit $LASTEXITCODE
+}
+
 Pop-Location
+

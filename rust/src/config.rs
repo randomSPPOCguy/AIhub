@@ -41,12 +41,17 @@ pub struct AppConfig {
     pub openai_api_key: Option<String>,
     pub gemini_api_key: Option<String>,
     pub hf_api_key: Option<String>,
+    pub temperature: f32,
+    pub max_tokens: u32,
+    pub system_prompt: String,
+    pub gemini_active_model: Option<String>,
+    pub gemini_active_label: Option<String>,
 }
 
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
-            selected_model: None,
+            selected_model: Some("Phi-3 Mini (Local)".to_string()),
             models: vec![
                 // Local models (no API key needed)
                 ModelConfig {
@@ -80,34 +85,66 @@ impl Default for AppConfig {
                 ModelConfig {
                     name: "GPT-4 Turbo (OpenAI)".to_string(),
                     model_type: ModelType::CloudOpenAI {
-                        api_key: None,
+                        api_key: std::env::var("OPENAI_API_KEY").ok(),
                         model_name: "gpt-4-turbo-preview".to_string(),
                     },
-                    enabled: false,
+                    enabled: std::env::var("OPENAI_API_KEY").is_ok(),
                     last_used: None,
                 },
                 ModelConfig {
                     name: "GPT-3.5 Turbo (OpenAI)".to_string(),
                     model_type: ModelType::CloudOpenAI {
-                        api_key: None,
+                        api_key: std::env::var("OPENAI_API_KEY").ok(),
                         model_name: "gpt-3.5-turbo".to_string(),
                     },
-                    enabled: false,
+                    enabled: std::env::var("OPENAI_API_KEY").is_ok(),
+                    last_used: None,
+                },
+                ModelConfig {
+                    name: "Gemini 2.0 Flash (Google)".to_string(),
+                    model_type: ModelType::CloudGemini {
+                        api_key: std::env::var("GEMINI_API_KEY").ok(),
+                        model_name: "gemini-2.0-flash-exp".to_string(),
+                    },
+                    enabled: std::env::var("GEMINI_API_KEY").is_ok(),
+                    last_used: None,
+                },
+                ModelConfig {
+                    name: "Gemini 1.5 Pro (Google)".to_string(),
+                    model_type: ModelType::CloudGemini {
+                        api_key: std::env::var("GEMINI_API_KEY").ok(),
+                        model_name: "gemini-1.5-pro-latest".to_string(),
+                    },
+                    enabled: std::env::var("GEMINI_API_KEY").is_ok(),
+                    last_used: None,
+                },
+                ModelConfig {
+                    name: "Gemini 1.5 Flash (Google)".to_string(),
+                    model_type: ModelType::CloudGemini {
+                        api_key: std::env::var("GEMINI_API_KEY").ok(),
+                        model_name: "gemini-1.5-flash-latest".to_string(),
+                    },
+                    enabled: std::env::var("GEMINI_API_KEY").is_ok(),
                     last_used: None,
                 },
                 ModelConfig {
                     name: "Gemini Pro (Google)".to_string(),
                     model_type: ModelType::CloudGemini {
-                        api_key: None,
-                        model_name: "gemini-pro".to_string(),
+                        api_key: std::env::var("GEMINI_API_KEY").ok(),
+                        model_name: "gemini-1.0-pro".to_string(),
                     },
-                    enabled: false,
+                    enabled: std::env::var("GEMINI_API_KEY").is_ok(),
                     last_used: None,
                 },
             ],
-            openai_api_key: None,
-            gemini_api_key: None,
-            hf_api_key: None,
+            openai_api_key: std::env::var("OPENAI_API_KEY").ok(),
+            gemini_api_key: std::env::var("GEMINI_API_KEY").ok(),
+            hf_api_key: std::env::var("HUGGINGFACE_API_KEY").ok(),
+            temperature: 0.7,
+            max_tokens: 1024,
+            system_prompt: "You are a friendly and knowledgeable AI assistant. Have natural conversations with users about any topic. Be helpful, engaging, and provide complete responses.".to_string(),
+            gemini_active_model: None,
+            gemini_active_label: None,
         }
     }
 }
@@ -116,11 +153,56 @@ impl AppConfig {
     pub fn load() -> Result<Self> {
         let config_path = Self::config_path();
 
-        if config_path.exists() {
+        let mut config = if config_path.exists() {
             let contents = fs::read_to_string(&config_path)?;
-            Ok(serde_json::from_str(&contents)?)
+            serde_json::from_str(&contents)?
         } else {
-            Ok(Self::default())
+            Self::default()
+        };
+
+        // Always merge environment variables on load
+        config.merge_env_vars();
+
+        if config.selected_model.is_none() {
+            if let Some(local) = config
+                .models
+                .iter()
+                .find(|m| matches!(m.model_type, ModelType::LocalHuggingFace { .. }))
+            {
+                config.selected_model = Some(local.name.clone());
+            }
+        }
+
+        Ok(config)
+    }
+
+    /// Merge API keys from environment variables
+    fn merge_env_vars(&mut self) {
+        // Update API keys from environment
+        if let Ok(key) = std::env::var("GEMINI_API_KEY") {
+            self.gemini_api_key = Some(key.clone());
+            // Update all Gemini models
+            for model in &mut self.models {
+                if let ModelType::CloudGemini { api_key, .. } = &mut model.model_type {
+                    *api_key = Some(key.clone());
+                    model.enabled = true;
+                }
+            }
+        }
+
+        if let Ok(key) = std::env::var("OPENAI_API_KEY") {
+            self.openai_api_key = Some(key.clone());
+            // Update all OpenAI models
+            for model in &mut self.models {
+                if let ModelType::CloudOpenAI { api_key, .. } = &mut model.model_type {
+                    *api_key = Some(key.clone());
+                    model.enabled = true;
+                }
+            }
+        }
+
+        if let Ok(key) = std::env::var("HUGGINGFACE_API_KEY") {
+            self.hf_api_key = Some(key);
         }
     }
 
@@ -150,6 +232,23 @@ impl AppConfig {
         if let Some(model) = self.models.iter_mut().find(|m| m.name == model_name) {
             model.last_used = Some(chrono::Utc::now().to_rfc3339());
         }
+    }
+
+    pub fn set_gemini_selection(&mut self, model_id: String, label: String) {
+        self.gemini_active_model = Some(model_id.clone());
+        self.gemini_active_label = Some(label.clone());
+
+        for model in &mut self.models {
+            if let ModelType::CloudGemini { model_name, .. } = &mut model.model_type {
+                *model_name = model_id.clone();
+            }
+        }
+    }
+
+    pub fn active_gemini_model(&self, fallback: &str) -> String {
+        self.gemini_active_model
+            .clone()
+            .unwrap_or_else(|| fallback.to_string())
     }
 
     pub fn get_selected_model(&self) -> Option<&ModelConfig> {
@@ -199,5 +298,17 @@ impl AppConfig {
                 *downloaded = true;
             }
         }
+    }
+
+    pub fn set_temperature(&mut self, temp: f32) {
+        self.temperature = temp.clamp(0.0, 2.0);
+    }
+
+    pub fn set_max_tokens(&mut self, tokens: u32) {
+        self.max_tokens = tokens.min(4096);
+    }
+
+    pub fn set_system_prompt(&mut self, prompt: String) {
+        self.system_prompt = prompt;
     }
 }

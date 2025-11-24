@@ -12,6 +12,10 @@ impl PythonBridge {
     pub fn new() -> Result<Self> {
         Python::with_gil(|py| {
             augment_python_path(py)?;
+            // Import the module - Python's import system caches modules,
+            // so this will only execute the module code once per process.
+            // The global variables (_model, _tokenizer) will persist across
+            // all calls to methods on this bridge.
             let module = PyModule::import(py, "ai_gateway")?;
             Ok(Self {
                 module: module.into(),
@@ -20,13 +24,15 @@ impl PythonBridge {
         .map_err(|err: PyErr| err.into())
     }
 
-    pub fn generate_response(&self, query: &str, enrichment_chunks: &[String]) -> Result<String> {
+    pub fn generate_response(&self, query: &str, enrichment_chunks: &[String], clean_output: bool) -> Result<String> {
         Python::with_gil(|py| {
             let module = self.module.as_ref(py);
             let py_list = PyList::new(py, enrichment_chunks);
+            let kwargs = pyo3::types::PyDict::new(py);
+            kwargs.set_item("clean_output", clean_output)?;
             let output = module
                 .getattr("generate_response")?
-                .call1((query, py_list))?;
+                .call((query, py_list), Some(kwargs))?;
             output.extract().context("python generate_response failed")
         })
     }
@@ -39,6 +45,49 @@ impl PythonBridge {
                 .call1((entity, entity_type))?;
             let serialized: String = py_value.extract()?;
             serde_json::from_str(&serialized).context("invalid enrichment payload")
+        })
+    }
+
+    pub fn warmup_model(&self) -> Result<String> {
+        Python::with_gil(|py| {
+            let module = self.module.as_ref(py);
+            let output = module
+                .getattr("warmup_model")?
+                .call0()?;
+            output.extract().context("python warmup_model failed")
+        })
+    }
+
+    pub fn generate_response_with_model(
+        &self,
+        query: &str,
+        enrichment_chunks: &[String],
+        model_type: &str,
+        model_name: &str,
+        api_key: &str,
+        temperature: f32,
+        max_tokens: u32,
+        system_prompt: &str,
+        clean_output: bool,
+    ) -> Result<String> {
+        Python::with_gil(|py| {
+            let module = self.module.as_ref(py);
+            let py_list = PyList::new(py, enrichment_chunks);
+            let kwargs = pyo3::types::PyDict::new(py);
+            kwargs.set_item("clean_output", clean_output)?;
+            let output = module
+                .getattr("generate_response_with_model")?
+                .call((
+                    query,
+                    py_list,
+                    model_type,
+                    model_name,
+                    api_key,
+                    temperature,
+                    max_tokens,
+                    system_prompt,
+                ), Some(kwargs))?;
+            output.extract().context("python generate_response_with_model failed")
         })
     }
 }

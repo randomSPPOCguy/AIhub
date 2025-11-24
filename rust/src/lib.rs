@@ -1,7 +1,11 @@
 pub mod api_chain;
 pub mod cache;
+pub mod coordinator;
 pub mod config;
 pub mod ffi;
 pub mod intent;
+pub mod navigation;
 pub mod nlg_processor;
+pub mod session;
 pub mod tui;
+pub mod web;
